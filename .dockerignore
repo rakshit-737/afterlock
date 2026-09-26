@@ -1,0 +1,9 @@
+# Build context for services/api/Dockerfile (context: repository root).
+# Keep VCS data, local environments, secrets and build outputs out of the context.
+.git
+.env
+.venv
+**/__pycache__
+**/node_modules
+services/web/dist
+sbom
