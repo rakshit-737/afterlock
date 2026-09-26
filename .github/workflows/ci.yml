@@ -228,11 +228,16 @@ jobs:
           uv pip sync -q --python "$lockcheck/bin/python" --require-hashes "$lockcheck.txt"
           norm() { tr 'A-Z_' 'a-z-' | sort; }
           uv pip freeze --python "$lockcheck/bin/python" | norm > "$lockcheck.expected"
-          docker compose run --rm --no-deps --entrypoint python api -m pip freeze \
-            | grep -v '^afterlock==' | norm > "$lockcheck.actual"
+          # Packages the digest-pinned base image already ships (pip tooling and its deps, e.g.
+          # packaging) are not ours to lock; subtract exactly those lines. A lock package that the
+          # image carries at a different version than the base still shows up in the diff.
+          base=$(sed -n 's/^FROM \(python:[^ ]*\) AS build$/\1/p' services/api/Dockerfile)
+          docker run --rm --entrypoint python "$base" -m pip freeze | norm > "$lockcheck.base"
+          docker compose run --rm --no-deps --entrypoint python api -m pip freeze > "$lockcheck.raw"
+          grep -Ev '^afterlock( |==|@)' "$lockcheck.raw" | norm | comm -23 - "$lockcheck.base" > "$lockcheck.actual"
           grep -q . "$lockcheck.expected"
           diff -u "$lockcheck.expected" "$lockcheck.actual"
-          docker compose run --rm --no-deps --entrypoint python api -m pip freeze | grep -q '^afterlock=='
+          grep -Eq '^afterlock( |==|@)' "$lockcheck.raw"
       - name: Build collector image
         run: docker build -t afterlock-collector:ci services/collector
       - name: Collector image runs as non-root
