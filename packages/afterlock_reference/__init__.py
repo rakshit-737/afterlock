@@ -132,6 +132,12 @@ def _granting(st: _Static, env: tuple, user: str, verb: str, resource: str, ns: 
     return out
 
 
+def _can_read(st: _Static, env: tuple, user: str, ns: str, name: str) -> bool:
+    """S-SEC-1: Kubernetes returns Secret data for get, list and watch (list/watch can be
+    narrowed to one object with a metadata.name field selector, so resourceNames apply)."""
+    return any(_granting(st, env, user, v, "secrets", ns, name) for v in ("watch", "list", "get"))
+
+
 def _cred_ok(st: _Static, env: tuple, cred: tuple) -> str:
     """'ok' | 'bad' | 'unsupported'. cred = (id, kind, user, sa_uid, pod_uid, aud, exp)."""
     _, kind, user, sa_uid, pod_uid, aud, exp = cred
@@ -270,7 +276,7 @@ def _attacker_steps(st: _Static, env: tuple, att: tuple, lim: ReferenceLimits, c
             continue
         user = c[2]
         for s in sorted(env[5]):
-            if _granting(st, env, user, "get", "secrets", s[0], s[1]):
+            if _can_read(st, env, user, s[0], s[1]):
                 fact = (s[0], s[1], s[2])
                 if fact not in know:
                     yield env, (creds, cpods, cctrls, know | {fact})
@@ -324,7 +330,7 @@ def _goals(st: _Static, env: tuple, att: tuple, raw: dict[str, Any]) -> set[tupl
             if not any((s[0], s[1]) == (ns, name) for s in env[5]):
                 continue
             for c in creds:
-                if _cred_ok(st, env, c) == "ok" and _granting(st, env, c[2], "get", "secrets", ns, name):
+                if _cred_ok(st, env, c) == "ok" and _can_read(st, env, c[2], ns, name):
                     out.add(o["id"])
                     break
         else:
