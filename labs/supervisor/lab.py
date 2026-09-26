@@ -93,11 +93,32 @@ class LabError(RuntimeError):
     pass
 
 
+STDERR_LIMIT = 200
+_SECRETISH = re.compile(r"(?i)(token|secret|password|bearer|authorization|data:|stringData|-----BEGIN)|[A-Za-z0-9+/=_\-.]{32,}")
+
+
+def scrub_stderr(stderr: bytes, *, had_stdin: bool) -> str:
+    """Error text safe to print and to land in CI logs.
+
+    Commands that received material on stdin (e.g. ``kubectl apply -f -`` of Secret manifests)
+    may echo it back in errors, so their stderr is withheld entirely. Otherwise the text is
+    truncated and any line mentioning credential-like content or holding a long opaque
+    token-like string is redacted.
+    """
+    if had_stdin:
+        return f"<stderr withheld: {len(stderr)} bytes; command received stdin>"
+    lines = stderr.decode("utf-8", "replace").splitlines()
+    safe = ["<redacted line>" if _SECRETISH.search(line) else line for line in lines]
+    text = " | ".join(safe)
+    return text if len(text) <= STDERR_LIMIT else text[:STDERR_LIMIT] + "...(truncated)"
+
+
 def run(args: list[str], *, stdin: bytes | None = None, check: bool = True, cwd: Path | None = None) -> str:
     """Run a fixed argument vector (never a shell string)."""
     proc = subprocess.run(args, input=stdin, capture_output=True, timeout=600, cwd=cwd)
     if check and proc.returncode != 0:
-        raise LabError(f"{args[0]} {args[1] if len(args) > 1 else ''} failed: {proc.stderr.decode()[:400]}")
+        detail = scrub_stderr(proc.stderr, had_stdin=stdin is not None)
+        raise LabError(f"{args[0]} {args[1] if len(args) > 1 else ''} failed (exit {proc.returncode}): {detail}")
     return proc.stdout.decode()
 
 
