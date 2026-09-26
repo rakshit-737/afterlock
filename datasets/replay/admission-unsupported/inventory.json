@@ -1,0 +1,115 @@
+{
+  "admission_policies": [
+    {
+      "kind": "validating-webhook",
+      "name": "opaque-webhook",
+      "namespace": "demo"
+    }
+  ],
+  "bindings": [
+    {
+      "name": "ci-pod-creator",
+      "namespace": "demo",
+      "role_kind": "Role",
+      "role_name": "pod-creator",
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "ci-runner",
+          "namespace": "demo"
+        }
+      ]
+    },
+    {
+      "name": "release-reader-secret",
+      "namespace": "demo",
+      "role_kind": "Role",
+      "role_name": "release-secret-reader",
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "release-reader",
+          "namespace": "demo"
+        }
+      ]
+    }
+  ],
+  "controllers": [],
+  "pods": [
+    {
+      "name": "ci-runner-7f9c",
+      "namespace": "demo",
+      "service_account": "ci-runner",
+      "uid": "pod-ci-0001"
+    },
+    {
+      "name": "release-app",
+      "namespace": "demo",
+      "service_account": "release-reader",
+      "uid": "pod-release-0001"
+    }
+  ],
+  "roles": [
+    {
+      "name": "pod-creator",
+      "namespace": "demo",
+      "rules": [
+        {
+          "resources": [
+            "pods"
+          ],
+          "verbs": [
+            "create",
+            "get",
+            "list"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "release-secret-reader",
+      "namespace": "demo",
+      "rules": [
+        {
+          "resource_names": [
+            "release-credential"
+          ],
+          "resources": [
+            "secrets"
+          ],
+          "verbs": [
+            "get"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets": [
+    {
+      "name": "release-credential",
+      "namespace": "demo",
+      "uid": "secret-0001",
+      "version": 1
+    }
+  ],
+  "service_accounts": [
+    {
+      "name": "ci-runner",
+      "namespace": "demo",
+      "uid": "sa-ci-runner-0001"
+    },
+    {
+      "name": "release-reader",
+      "namespace": "demo",
+      "uid": "sa-release-reader-0001"
+    }
+  ],
+  "services": [
+    {
+      "accepted_version": 1,
+      "name": "canary-service",
+      "source_namespace": "demo",
+      "source_secret": "release-credential"
+    }
+  ]
+}
