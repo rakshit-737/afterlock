@@ -25,3 +25,12 @@
   image.
 - Supply chain: actions pinned by SHA, images by digest, lockfile installs, CycloneDX SBOM,
   Dependabot. Lab-derived benchmark labels.
+- CI `containers` job with compose smoke test; all images pinned by digest.
+- API: SSE job progress, optional OIDC (`afterlock[oidc]`), migration 0003 (case ids unique per
+  cluster), streamed body limit, bounded in-memory store, verification/plan concurrency limits,
+  API docs off by default.
+- Frontend: background jobs, provenance graph, evidence drawer, credential-lifecycle view,
+  Playwright end-to-end and axe accessibility tests.
+- 44 held-out cases labelled by the reference checker; S-SEC-5 rotation propagation window.
+- Collector wired into the live lab. Fixed: `project()` crashed when one stolen token appeared
+  in several audit events.
