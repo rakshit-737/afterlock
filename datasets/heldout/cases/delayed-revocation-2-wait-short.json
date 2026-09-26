@@ -1,0 +1,97 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "Waiting less than the slowest propagation leaves the old credential accepted."
+  ],
+  "bounds": {},
+  "case_id": "delayed-revocation-2-wait-short",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [],
+  "initial_facts": [
+    {
+      "args": [
+        "payments",
+        "signing-key",
+        "1"
+      ],
+      "evidence": [],
+      "kind": "knows_secret",
+      "status": "observed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [],
+    "controllers": [],
+    "pods": [],
+    "roles": [],
+    "secrets": [
+      {
+        "name": "signing-key",
+        "namespace": "payments",
+        "uid": "sec-payments-sk",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "signer",
+        "namespace": "payments",
+        "uid": "sa-payments-signer"
+      }
+    ],
+    "services": [
+      {
+        "accepted_version": 1,
+        "name": "consumer-0",
+        "rotation_propagation_seconds": 120,
+        "source_namespace": "payments",
+        "source_secret": "signing-key"
+      },
+      {
+        "accepted_version": 1,
+        "name": "consumer-1",
+        "rotation_propagation_seconds": 120,
+        "source_namespace": "payments",
+        "source_secret": "signing-key"
+      }
+    ]
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-consumer-0",
+      "kind": "no_downstream_use",
+      "service": "consumer-0"
+    },
+    {
+      "id": "protect-consumer-1",
+      "kind": "no_downstream_use",
+      "service": "consumer-1"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "consumer-0"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "consumer-1"
+    },
+    {
+      "kind": "wait",
+      "seconds": 119
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
