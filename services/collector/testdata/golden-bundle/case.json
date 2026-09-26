@@ -1,0 +1,39 @@
+{
+  "analysis_time": "2026-01-01T12:30:00Z",
+  "assumptions": [
+    "Initial compromise of the CI service account is seeded, not exploited."
+  ],
+  "compromised_credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-ci-0001",
+      "id": "ci-runner-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-ci-runner-0001",
+      "username": "system:serviceaccount:demo:ci-runner"
+    }
+  ],
+  "description": "Golden bundle produced by the Go collector test from a fake cluster and a fixture audit log.",
+  "legitimate_operations": [],
+  "max_evidence_staleness_seconds": 300,
+  "objectives": [
+    {
+      "description": "Prevent further Kubernetes reads of demo/release-credential by modeled attacker credentials.",
+      "id": "protect-secret",
+      "kind": "no_secret_read",
+      "namespace": "demo",
+      "secret": "release-credential"
+    }
+  ],
+  "profile": "k8s-1.31-core-v1",
+  "remediation": [
+    {
+      "kind": "remove_binding",
+      "name": "ci-pod-creator",
+      "namespace": "demo"
+    }
+  ],
+  "required_sources": [
+    "lab-audit"
+  ]
+}
