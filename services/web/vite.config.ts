@@ -11,6 +11,10 @@ export default defineConfig({
   server: {
     proxy: { "/v1": { target: apiTarget, changeOrigin: false } },
   },
+  // `vite preview` serves the production build; the Playwright e2e suite uses it with the same proxy.
+  preview: {
+    proxy: { "/v1": { target: apiTarget, changeOrigin: false } },
+  },
   build: {
     outDir: "dist",
     sourcemap: false,
