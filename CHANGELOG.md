@@ -15,7 +15,7 @@
 - 16 hand-authored semantic cases, differential and metamorphic property tests, and a
   mutation check.
 - Live lab: semantic spike, canary relying service (S-SEC-2..4), Calico-enforced network
-  isolation, `lab reset`, `spike --repeat N`. 3 runs x 15 steps agree with the model.
+  isolation, `lab reset`, `spike --repeat N`. 3 runs x 17 steps agree with the model (latest receipts).
 - PostgreSQL persistence (optional extra `postgres`) with plain-SQL migrations, a leased job
   worker, and async job endpoints. `/v1/health` reports the backend; analysis IDs are now
   random (`an-<16 hex>`).
