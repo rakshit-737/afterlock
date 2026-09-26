@@ -1,0 +1,51 @@
+name: live-lab
+
+# Privileged lab execution: manual dispatch only by maintainers, never on
+# pull_request, never with repository secrets. Runs on a disposable
+# GitHub-hosted runner that is discarded after the job.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install AFTERLOCK
+        run: pip install -e .
+      - name: Install kind and kubectl (pinned versions, checksum-verified)
+        env:
+          KIND_VERSION: v0.26.0
+          KUBECTL_VERSION: v1.31.4
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSLo kind.sha256 "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum"
+          echo "$(cut -d' ' -f1 kind.sha256)  kind" | sha256sum -c -
+          curl -fsSLo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          curl -fsSLo kubectl.sha256 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
+          echo "$(cat kubectl.sha256)  kubectl" | sha256sum -c -
+          chmod +x kind kubectl && sudo mv kind kubectl /usr/local/bin/
+      - name: Doctor (live-lab profile)
+        run: python scripts/doctor --profile live-lab
+      - name: Create lab
+        run: scripts/lab create
+      - name: Semantic spike
+        run: AFTERLOCK_LIVE_LAB=1 python -m pytest -q tests/conformance -rs
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-receipts
+          path: labs/receipts/
+      - name: Destroy lab
+        if: always()
+        run: scripts/lab destroy || true
