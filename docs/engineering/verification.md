@@ -19,10 +19,26 @@ Date: 2026-09-25, commit following `e9a07bc`.
 | Benchmark | `python benchmarks/run.py --repeat 3` | see `benchmarks/reports/semantic-corpus.md` |
 | CLI demo | `make demo` | pass |
 
+## Live lab (2026-09-26)
+
+`live-lab` workflow, run [36221758899](https://github.com/rakshit-737/afterlock/actions/runs/36221758899),
+GitHub-hosted ubuntu-24.04, kind with Kubernetes v1.31.4. `tests/conformance`: 1 passed.
+Receipt: `labs/receipts/spike-20260926T054738Z.json`. All 6 steps agree with the model:
+
+| Step | Predicted | Observed HTTP |
+|---|---|---|
+| ci-creates-release-reader-pod | may_create | 201 |
+| attacker-reads-secret | violated | 200 |
+| ci-creation-blocked-after-binding-removal | blocked | 403 (0.01 s) |
+| residual-token-still-reads-secret | violated | 200 |
+| bound-token-rejected-after-pod-deletion (S-TOK-4) | rejected | 401 (0.01 s after deletion) |
+| negative-control-admission-denies | satisfied_within_scope | 422 |
+
+Single run on one version; timings are from one idle cluster and are not a bound.
+
 ## Not executed (these are not passes)
 
 | Check | Why | How to run |
 |---|---|---|
-| Live Kubernetes conformance / semantic spike | no Docker daemon | `live-lab` workflow or `scripts/lab create && scripts/lab spike` |
 | Container build / compose | no Docker daemon | `docker compose up --build` |
-| GitHub Actions workflows | not triggered from this environment | push / manual dispatch |
+| GitHub Actions `ci` workflow | not inspected | push |
