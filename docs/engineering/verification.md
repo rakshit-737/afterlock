@@ -52,9 +52,35 @@ steps above (same statuses) and adds:
 The receipt contains no credential values (checked: no `synthetic-` string). The rotation delay is
 the kubelet's mounted-Secret refresh; the model treats rotation as instantaneous.
 
+### Hardened lab, 3 repeats (run [36227357340](https://github.com/rakshit-737/afterlock/actions/runs/36227357340))
+
+Calico v3.29.1 (manifest checked against a pinned SHA-256), kubelet `syncFrequency: 10s`,
+kindest/node pinned by digest. `spike --repeat 3`: every run `lab_confirmed`, 15/15 steps,
+observations identical across runs (`labs/receipts/spike-summary-20260926T073847Z.json`).
+New isolation steps: outsider -> canary and attacker -> outsider get no answer (status 0,
+expected `no_answer`); the reachability controls answer (401, 404). Rotation acknowledged in
+2.43 / 11.33 / 13.54 s (min / median / max). No credential values in any receipt.
+
+## CI (run [36228425312](https://github.com/rakshit-737/afterlock/actions/runs/36228425312))
+
+All jobs pass on ubuntu-24.04:
+
+| Job | What it runs |
+|---|---|
+| portable | `uv sync --frozen`, doctor, ruff, mypy, pytest, replay determinism, benchmarks |
+| postgres | migrations on postgres:16, then migration/storage/worker/job-API tests; any "BLOCKED" skip fails the job |
+| web | `npm ci`, policy lint, typecheck, vitest, vite build |
+| collector | `go mod verify`, gofmt, `go vet`, `go test -race`, static build |
+| sbom | CycloneDX SBOMs from the lockfile and the environment |
+
+Local (Windows 11): `services/web` 31 tests pass; collector `go test -race -count=3` passes with
+go1.24.13; `tests/unit/test_lab_receipts.py` passes. Windows checkouts need LF line endings for
+replay checksums (`.gitattributes` enforces this).
+
 ## Not executed (these are not passes)
 
 | Check | Why | How to run |
 |---|---|---|
 | Container build / compose | no Docker daemon | `docker compose up --build` |
-| GitHub Actions `ci` workflow | not inspected | push |
+| Collector against a live API server | not yet wired into the lab | planned lab step |
+| Frontend in a browser / Playwright | no end-to-end suite | planned |
