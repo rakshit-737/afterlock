@@ -82,6 +82,11 @@ class Env:
 # --------------------------------------------------------------------------
 # RBAC
 
+# S-SEC-1: verbs whose response carries Secret data. A list/watch request can be
+# narrowed to one Secret with a metadata.name field selector, so a rule's
+# resourceNames are matched against that Secret's name for all three.
+SECRET_READ_VERBS = ("get", "list", "watch")
+
 
 def _subject_matches(binding: RoleBinding, username: str) -> bool:
     sa = parse_sa_username(username)
