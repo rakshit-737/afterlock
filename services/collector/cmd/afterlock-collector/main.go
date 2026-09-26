@@ -39,6 +39,7 @@ type config struct {
 	spoolMaxRecords                                                   int
 	auditLog, webhookListen, webhookTokenFile, tlsCert, tlsKey        string
 	insecureHTTP, noCluster, secretMetadata                           bool
+	secretNamespaces, auditSince                                      string
 	duration, syncTimeout                                             time.Duration
 }
 
@@ -61,6 +62,8 @@ func main() {
 	flag.StringVar(&c.tlsKey, "tls-key", "", "TLS key for the webhook receiver")
 	flag.BoolVar(&c.insecureHTTP, "insecure-http-loopback", false, "serve the webhook over plain HTTP; only permitted on a loopback address")
 	flag.BoolVar(&c.secretMetadata, "secret-metadata", false, "watch Secret metadata (PartialObjectMetadata); requires the optional secret-metadata ClusterRole")
+	flag.StringVar(&c.secretNamespaces, "secret-namespaces", "", "comma-separated namespaces for --secret-metadata list/watch (default: cluster-wide); use this when secret read is granted by RoleBindings only")
+	flag.StringVar(&c.auditSince, "audit-since", "", "RFC3339 start of the evidence window: audit events before it are excluded and counted in one audit-before-window gap")
 	flag.DurationVar(&c.duration, "duration", 0, "how long to collect before writing the bundle (0: until SIGINT/SIGTERM, or immediately if only --audit-log is given)")
 	flag.DurationVar(&c.syncTimeout, "sync-timeout", 60*time.Second, "how long to wait for the initial inventory lists")
 	flag.Parse()
@@ -103,6 +106,17 @@ func run(c config, log *slog.Logger) error {
 	}
 	defer sp.Close()
 	in := audit.NewIngester(sp)
+	if c.auditSince != "" {
+		since, err := time.Parse(time.RFC3339, c.auditSince)
+		if err != nil {
+			return fmt.Errorf("--audit-since: %w", err)
+		}
+		in.Since = since
+	}
+	secretNS := splitList(c.secretNamespaces)
+	if len(secretNS) > 0 && !c.secretMetadata {
+		return errors.New("--secret-namespaces requires --secret-metadata")
+	}
 	store := inventory.NewStore()
 	gap := func(kind, reason string) {
 		if err := sp.Gap(kind, reason); err != nil {
@@ -121,7 +135,7 @@ func run(c config, log *slog.Logger) error {
 		if c.secretMetadata {
 			md = metadataPlaceholder{}
 		}
-		coll = inventory.New(nil, md, store, gap)
+		coll = inventory.New(nil, md, store, gap, secretNS...)
 		close(done)
 	} else {
 		cfg, err := restConfig(c.kubeconfig)
@@ -139,7 +153,7 @@ func run(c config, log *slog.Logger) error {
 				return err
 			}
 		}
-		coll = inventory.New(cs, md, store, gap)
+		coll = inventory.New(cs, md, store, gap, secretNS...)
 		go func() { coll.Run(collCtx); close(done) }()
 		waitSynced(ctx, store, coll.Kinds(), c.syncTimeout)
 	}
@@ -180,6 +194,9 @@ func run(c config, log *slog.Logger) error {
 	}
 	cancelColl()
 	<-done
+	if err := in.RecordWindowGap(); err != nil && !errors.Is(err, spool.ErrOverflow) {
+		return err
+	}
 
 	snap := store.Snapshot(coll.Kinds())
 	if err := bundle.Write(bundle.Options{
@@ -193,6 +210,16 @@ func run(c config, log *slog.Logger) error {
 		"audit_accepted", in.Counters.Accepted.Load(), "audit_duplicates", in.Counters.Duplicates.Load(),
 		"audit_bodies_dropped", in.Counters.BodiesDropped.Load(), "redactions", redact.Redactions())
 	return nil
+}
+
+func splitList(s string) []string {
+	var out []string
+	for _, x := range strings.Split(s, ",") {
+		if x = strings.TrimSpace(x); x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 // metadataPlaceholder only exists so --no-cluster --secret-metadata lists the
