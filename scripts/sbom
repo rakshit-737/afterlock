@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# Generate CycloneDX SBOMs for the Python dependency set.
+#   sbom/afterlock-lock.cdx.json  - every package pinned in uv.lock (all extras), from `uv export`
+#   sbom/afterlock-env.cdx.json   - packages actually installed in the environment (.venv)
+# Requires uv. The environment SBOM tool (cyclonedx-bom) is version-pinned and run in
+# an isolated uv tool environment; it is NOT installed into the project venv.
+# See docs/security/supply-chain.md.
+set -eu
+cd "$(dirname "$0")/.."
+CYCLONEDX_BOM_VERSION="${CYCLONEDX_BOM_VERSION:-7.4.0}"
+OUT="${SBOM_DIR:-sbom}"
+VENV="${VENV:-$(pwd)/.venv}"
+mkdir -p "$OUT"
+uv lock --check
+uv export --frozen --all-extras --preview-features sbom-export --format cyclonedx1.5 --output-file "$OUT/afterlock-lock.cdx.json" >/dev/null
+uvx --from "cyclonedx-bom==${CYCLONEDX_BOM_VERSION}" cyclonedx-py environment \
+  --of JSON --output-file "$OUT/afterlock-env.cdx.json" "$VENV"
+echo "SBOMs written to $OUT/"
