@@ -1,0 +1,114 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "Deleting the bound pod invalidates the token before expiry."
+  ],
+  "bounds": {},
+  "case_id": "token-expiry-2-delete-bound-pod",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-edge-exporter-0",
+      "expires_at": 1800001200,
+      "id": "copied",
+      "kind": "sa_token",
+      "sa_uid": "sa-edge-exporter",
+      "username": "system:serviceaccount:edge:exporter"
+    }
+  ],
+  "initial_facts": [
+    {
+      "args": [
+        "copied"
+      ],
+      "evidence": [],
+      "kind": "possesses_credential",
+      "status": "observed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "exporter-read",
+        "namespace": "edge",
+        "role_kind": "Role",
+        "role_name": "read",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "exporter",
+            "namespace": "edge"
+          }
+        ]
+      }
+    ],
+    "controllers": [],
+    "pods": [
+      {
+        "name": "exporter-0",
+        "namespace": "edge",
+        "service_account": "exporter",
+        "uid": "pod-edge-exporter-0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "read",
+        "namespace": "edge",
+        "rules": [
+          {
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "export-creds",
+        "namespace": "edge",
+        "uid": "sec-edge-ec",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "exporter",
+        "namespace": "edge",
+        "uid": "sa-edge-exporter"
+      }
+    ],
+    "services": []
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-edge-export-creds",
+      "kind": "no_secret_read",
+      "namespace": "edge",
+      "secret": "export-creds"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "delete_pod",
+      "uid": "pod-edge-exporter-0"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
