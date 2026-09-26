@@ -1,0 +1,27 @@
+# Dependency update PRs. Updates are proposals: CI must pass and a maintainer must
+# review each bump (see docs/security/supply-chain.md). Dependabot keeps the
+# `# vX.Y.Z` comments on SHA-pinned actions in sync with the SHA it writes.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Python (pyproject.toml + uv.lock). The "uv" ecosystem is used instead of "pip"
+  # because it regenerates uv.lock; a pip-ecosystem bump would edit pyproject.toml
+  # without the lockfile and leave CI's frozen install out of date.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /services/api
+    schedule:
+      interval: weekly
