@@ -74,6 +74,8 @@ def api_flow(token: str) -> None:
     health = json.loads(raw or b"{}") if status == 200 else {}
     check(status == 200 and health.get("status") == "ok", f"api /v1/health 200 ok (got {status})")
     check(health.get("storage") == "postgresql", f"api storage is postgresql (got {health.get('storage')!r})")
+    if status != 200:
+        return
 
     d = ROOT / "datasets" / "replay" / CASE
     manifest = json.loads((d / "manifest.json").read_text())
@@ -113,6 +115,8 @@ def api_flow(token: str) -> None:
 def web_flow() -> None:
     status, headers, raw = wait_ok(WEB + "/")
     check(status == 200, f"web / -> 200 (got {status})")
+    if status != 200:
+        return
     check(b"<!doctype html" in raw.lower()[:200], "web / serves index.html")
     csp = headers.get("content-security-policy", "")
     check("default-src 'none'" in csp and "script-src 'self'" in csp, "web / has Content-Security-Policy")
