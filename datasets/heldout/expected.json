@@ -1,0 +1,727 @@
+{
+  "_comment": "Labels derived by packages/afterlock_reference (independent re-implementation), never by the production engine. They measure implementation agreement on templates not used during engine development, not real-world outcomes.",
+  "_generator": "datasets/generators/build_heldout_cases.py",
+  "_reference_limits": {
+    "max_live_attacker_workloads_per_sa": 1,
+    "max_states": 150000
+  },
+  "_seed": "afterlock-heldout-v1",
+  "cases": {
+    "controller-recreate-0-delete-controller": {
+      "conclusion": "contained_within_scope",
+      "description": "Deleting the controller before rotating every consumer contains the incident.",
+      "instance": 0,
+      "objectives": {
+        "protect-api-0": "satisfied_within_scope",
+        "protect-api-1": "satisfied_within_scope",
+        "protect-payments-report-key": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 16,
+        "evidence_supported": 16
+      },
+      "template": "controller-recreate",
+      "variant": "delete-controller"
+    },
+    "controller-recreate-0-delete-pods": {
+      "conclusion": "residual_path",
+      "description": "Deleting the pods leaves the controller, which recreates one and rereads the rotated key.",
+      "instance": 0,
+      "objectives": {
+        "protect-api-0": "violated",
+        "protect-api-1": "violated",
+        "protect-payments-report-key": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 70,
+        "evidence_supported": 70
+      },
+      "template": "controller-recreate",
+      "variant": "delete-pods"
+    },
+    "controller-recreate-0-partial-rotation": {
+      "conclusion": "residual_path",
+      "description": "Only one of two consumers of the key is rotated.",
+      "instance": 0,
+      "objectives": {
+        "protect-api-0": "satisfied_within_scope",
+        "protect-api-1": "violated",
+        "protect-payments-report-key": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 12,
+        "evidence_supported": 12
+      },
+      "template": "controller-recreate",
+      "variant": "partial-rotation"
+    },
+    "controller-recreate-1-delete-controller": {
+      "conclusion": "contained_within_scope",
+      "description": "Deleting the controller before rotating every consumer contains the incident.",
+      "instance": 1,
+      "objectives": {
+        "protect-api-0": "satisfied_within_scope",
+        "protect-api-1": "satisfied_within_scope",
+        "protect-ingest-report-key": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 16,
+        "evidence_supported": 16
+      },
+      "template": "controller-recreate",
+      "variant": "delete-controller"
+    },
+    "controller-recreate-1-delete-pods": {
+      "conclusion": "residual_path",
+      "description": "Deleting the pods leaves the controller, which recreates one and rereads the rotated key.",
+      "instance": 1,
+      "objectives": {
+        "protect-api-0": "violated",
+        "protect-api-1": "violated",
+        "protect-ingest-report-key": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 70,
+        "evidence_supported": 70
+      },
+      "template": "controller-recreate",
+      "variant": "delete-pods"
+    },
+    "controller-recreate-1-partial-rotation": {
+      "conclusion": "residual_path",
+      "description": "Only one of two consumers of the key is rotated.",
+      "instance": 1,
+      "objectives": {
+        "protect-api-0": "satisfied_within_scope",
+        "protect-api-1": "violated",
+        "protect-ingest-report-key": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 12,
+        "evidence_supported": 12
+      },
+      "template": "controller-recreate",
+      "variant": "partial-rotation"
+    },
+    "controller-recreate-2-delete-controller": {
+      "conclusion": "contained_within_scope",
+      "description": "Deleting the controller before rotating every consumer contains the incident.",
+      "instance": 2,
+      "objectives": {
+        "protect-api-0": "satisfied_within_scope",
+        "protect-ops-report-key": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 12,
+        "evidence_supported": 12
+      },
+      "template": "controller-recreate",
+      "variant": "delete-controller"
+    },
+    "controller-recreate-2-delete-pods": {
+      "conclusion": "residual_path",
+      "description": "Deleting the pods leaves the controller, which recreates one and rereads the rotated key.",
+      "instance": 2,
+      "objectives": {
+        "protect-api-0": "violated",
+        "protect-ops-report-key": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 38,
+        "evidence_supported": 38
+      },
+      "template": "controller-recreate",
+      "variant": "delete-pods"
+    },
+    "crb-escalation-0-full": {
+      "conclusion": "contained_within_scope",
+      "description": "Both grants removed before purging attacker pods and rotating.",
+      "instance": 0,
+      "objectives": {
+        "protect-ledger": "satisfied_within_scope",
+        "protect-search-db-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 560,
+        "evidence_supported": 560
+      },
+      "template": "crb-escalation",
+      "variant": "full"
+    },
+    "crb-escalation-0-purge-first": {
+      "conclusion": "residual_path",
+      "description": "Attacker pods purged before the grants are removed; the attacker recreates one in between.",
+      "instance": 0,
+      "objectives": {
+        "protect-ledger": "violated",
+        "protect-search-db-creds": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 2974,
+        "evidence_supported": 2974
+      },
+      "template": "crb-escalation",
+      "variant": "purge-first"
+    },
+    "crb-escalation-0-rb-only": {
+      "conclusion": "residual_path",
+      "description": "Only the namespaced binding is removed; the ClusterRoleBinding still grants pod creation in the target namespace.",
+      "instance": 0,
+      "objectives": {
+        "protect-ledger": "violated",
+        "protect-search-db-creds": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 1810,
+        "evidence_supported": 1810
+      },
+      "template": "crb-escalation",
+      "variant": "rb-only"
+    },
+    "crb-escalation-1-full": {
+      "conclusion": "contained_within_scope",
+      "description": "Both grants removed before purging attacker pods and rotating.",
+      "instance": 1,
+      "objectives": {
+        "protect-batch-db-creds": "satisfied_within_scope",
+        "protect-ledger": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 560,
+        "evidence_supported": 560
+      },
+      "template": "crb-escalation",
+      "variant": "full"
+    },
+    "crb-escalation-1-purge-first": {
+      "conclusion": "residual_path",
+      "description": "Attacker pods purged before the grants are removed; the attacker recreates one in between.",
+      "instance": 1,
+      "objectives": {
+        "protect-batch-db-creds": "violated",
+        "protect-ledger": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 2974,
+        "evidence_supported": 2974
+      },
+      "template": "crb-escalation",
+      "variant": "purge-first"
+    },
+    "crb-escalation-1-rb-only": {
+      "conclusion": "residual_path",
+      "description": "Only the namespaced binding is removed; the ClusterRoleBinding still grants pod creation in the target namespace.",
+      "instance": 1,
+      "objectives": {
+        "protect-batch-db-creds": "violated",
+        "protect-ledger": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 1810,
+        "evidence_supported": 1810
+      },
+      "template": "crb-escalation",
+      "variant": "rb-only"
+    },
+    "crb-escalation-2-full": {
+      "conclusion": "contained_within_scope",
+      "description": "Both grants removed before purging attacker pods and rotating.",
+      "instance": 2,
+      "objectives": {
+        "protect-edge-db-creds": "satisfied_within_scope",
+        "protect-ledger": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 90,
+        "evidence_supported": 90
+      },
+      "template": "crb-escalation",
+      "variant": "full"
+    },
+    "crb-escalation-2-purge-first": {
+      "conclusion": "residual_path",
+      "description": "Attacker pods purged before the grants are removed; the attacker recreates one in between.",
+      "instance": 2,
+      "objectives": {
+        "protect-edge-db-creds": "violated",
+        "protect-ledger": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 384,
+        "evidence_supported": 384
+      },
+      "template": "crb-escalation",
+      "variant": "purge-first"
+    },
+    "crb-escalation-2-rb-only": {
+      "conclusion": "residual_path",
+      "description": "Only the namespaced binding is removed; the ClusterRoleBinding still grants pod creation in the target namespace.",
+      "instance": 2,
+      "objectives": {
+        "protect-edge-db-creds": "violated",
+        "protect-ledger": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 238,
+        "evidence_supported": 238
+      },
+      "template": "crb-escalation",
+      "variant": "rb-only"
+    },
+    "delayed-revocation-0-rotate-only": {
+      "conclusion": "residual_path",
+      "description": "Rotation acknowledged but not yet propagated at the end of the sequence.",
+      "instance": 0,
+      "objectives": {
+        "protect-consumer-0": "violated",
+        "protect-consumer-1": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 3,
+        "evidence_supported": 3
+      },
+      "template": "delayed-revocation",
+      "variant": "rotate-only"
+    },
+    "delayed-revocation-0-wait-full": {
+      "conclusion": "contained_within_scope",
+      "description": "Waiting for the slowest propagation window contains the copied credential.",
+      "instance": 0,
+      "objectives": {
+        "protect-consumer-0": "satisfied_within_scope",
+        "protect-consumer-1": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "delayed-revocation",
+      "variant": "wait-full"
+    },
+    "delayed-revocation-0-wait-short": {
+      "conclusion": "residual_path",
+      "description": "Waiting less than the slowest propagation leaves the old credential accepted.",
+      "instance": 0,
+      "objectives": {
+        "protect-consumer-0": "satisfied_within_scope",
+        "protect-consumer-1": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "delayed-revocation",
+      "variant": "wait-short"
+    },
+    "delayed-revocation-1-rotate-only": {
+      "conclusion": "residual_path",
+      "description": "Rotation acknowledged but not yet propagated at the end of the sequence.",
+      "instance": 1,
+      "objectives": {
+        "protect-consumer-0": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 2,
+        "evidence_supported": 2
+      },
+      "template": "delayed-revocation",
+      "variant": "rotate-only"
+    },
+    "delayed-revocation-1-wait-full": {
+      "conclusion": "contained_within_scope",
+      "description": "Waiting for the slowest propagation window contains the copied credential.",
+      "instance": 1,
+      "objectives": {
+        "protect-consumer-0": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 3,
+        "evidence_supported": 3
+      },
+      "template": "delayed-revocation",
+      "variant": "wait-full"
+    },
+    "delayed-revocation-1-wait-short": {
+      "conclusion": "residual_path",
+      "description": "Waiting less than the slowest propagation leaves the old credential accepted.",
+      "instance": 1,
+      "objectives": {
+        "protect-consumer-0": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 3,
+        "evidence_supported": 3
+      },
+      "template": "delayed-revocation",
+      "variant": "wait-short"
+    },
+    "delayed-revocation-2-rotate-only": {
+      "conclusion": "residual_path",
+      "description": "Rotation acknowledged but not yet propagated at the end of the sequence.",
+      "instance": 2,
+      "objectives": {
+        "protect-consumer-0": "violated",
+        "protect-consumer-1": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 3,
+        "evidence_supported": 3
+      },
+      "template": "delayed-revocation",
+      "variant": "rotate-only"
+    },
+    "delayed-revocation-2-wait-full": {
+      "conclusion": "contained_within_scope",
+      "description": "Waiting for the slowest propagation window contains the copied credential.",
+      "instance": 2,
+      "objectives": {
+        "protect-consumer-0": "satisfied_within_scope",
+        "protect-consumer-1": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "delayed-revocation",
+      "variant": "wait-full"
+    },
+    "delayed-revocation-2-wait-short": {
+      "conclusion": "residual_path",
+      "description": "Waiting less than the slowest propagation leaves the old credential accepted.",
+      "instance": 2,
+      "objectives": {
+        "protect-consumer-0": "violated",
+        "protect-consumer-1": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "delayed-revocation",
+      "variant": "wait-short"
+    },
+    "group-subject-0-both-bindings": {
+      "conclusion": "contained_within_scope",
+      "description": "Both bindings removed before rotating every consumer.",
+      "instance": 0,
+      "objectives": {
+        "protect-downstream-0": "satisfied_within_scope",
+        "protect-downstream-1": "satisfied_within_scope",
+        "protect-downstream-2": "satisfied_within_scope",
+        "protect-ops-shared-token": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 6,
+        "evidence_supported": 6
+      },
+      "template": "group-subject",
+      "variant": "both-bindings"
+    },
+    "group-subject-0-miss-one-consumer": {
+      "conclusion": "residual_path",
+      "description": "Both bindings removed but one consumer keeps the old version.",
+      "instance": 0,
+      "objectives": {
+        "protect-downstream-0": "satisfied_within_scope",
+        "protect-downstream-1": "satisfied_within_scope",
+        "protect-downstream-2": "violated",
+        "protect-ops-shared-token": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 5,
+        "evidence_supported": 5
+      },
+      "template": "group-subject",
+      "variant": "miss-one-consumer"
+    },
+    "group-subject-0-sa-binding-only": {
+      "conclusion": "residual_path",
+      "description": "The SA binding is removed but the group binding still lets the stolen token read the rotated Secret.",
+      "instance": 0,
+      "objectives": {
+        "protect-downstream-0": "violated",
+        "protect-downstream-1": "violated",
+        "protect-downstream-2": "violated",
+        "protect-ops-shared-token": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 16,
+        "evidence_supported": 16
+      },
+      "template": "group-subject",
+      "variant": "sa-binding-only"
+    },
+    "group-subject-1-both-bindings": {
+      "conclusion": "contained_within_scope",
+      "description": "Both bindings removed before rotating every consumer.",
+      "instance": 1,
+      "objectives": {
+        "protect-downstream-0": "satisfied_within_scope",
+        "protect-downstream-1": "satisfied_within_scope",
+        "protect-downstream-2": "satisfied_within_scope",
+        "protect-search-shared-token": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 6,
+        "evidence_supported": 6
+      },
+      "template": "group-subject",
+      "variant": "both-bindings"
+    },
+    "group-subject-1-miss-one-consumer": {
+      "conclusion": "residual_path",
+      "description": "Both bindings removed but one consumer keeps the old version.",
+      "instance": 1,
+      "objectives": {
+        "protect-downstream-0": "satisfied_within_scope",
+        "protect-downstream-1": "satisfied_within_scope",
+        "protect-downstream-2": "violated",
+        "protect-search-shared-token": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 5,
+        "evidence_supported": 5
+      },
+      "template": "group-subject",
+      "variant": "miss-one-consumer"
+    },
+    "group-subject-1-sa-binding-only": {
+      "conclusion": "residual_path",
+      "description": "The SA binding is removed but the group binding still lets the stolen token read the rotated Secret.",
+      "instance": 1,
+      "objectives": {
+        "protect-downstream-0": "violated",
+        "protect-downstream-1": "violated",
+        "protect-downstream-2": "violated",
+        "protect-search-shared-token": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 16,
+        "evidence_supported": 16
+      },
+      "template": "group-subject",
+      "variant": "sa-binding-only"
+    },
+    "group-subject-2-both-bindings": {
+      "conclusion": "contained_within_scope",
+      "description": "Both bindings removed before rotating every consumer.",
+      "instance": 2,
+      "objectives": {
+        "protect-downstream-0": "satisfied_within_scope",
+        "protect-downstream-1": "satisfied_within_scope",
+        "protect-downstream-2": "satisfied_within_scope",
+        "protect-ingest-shared-token": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 6,
+        "evidence_supported": 6
+      },
+      "template": "group-subject",
+      "variant": "both-bindings"
+    },
+    "group-subject-2-miss-one-consumer": {
+      "conclusion": "residual_path",
+      "description": "Both bindings removed but one consumer keeps the old version.",
+      "instance": 2,
+      "objectives": {
+        "protect-downstream-0": "satisfied_within_scope",
+        "protect-downstream-1": "satisfied_within_scope",
+        "protect-downstream-2": "violated",
+        "protect-ingest-shared-token": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 5,
+        "evidence_supported": 5
+      },
+      "template": "group-subject",
+      "variant": "miss-one-consumer"
+    },
+    "group-subject-2-sa-binding-only": {
+      "conclusion": "residual_path",
+      "description": "The SA binding is removed but the group binding still lets the stolen token read the rotated Secret.",
+      "instance": 2,
+      "objectives": {
+        "protect-downstream-0": "violated",
+        "protect-downstream-1": "violated",
+        "protect-downstream-2": "violated",
+        "protect-ingest-shared-token": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 16,
+        "evidence_supported": 16
+      },
+      "template": "group-subject",
+      "variant": "sa-binding-only"
+    },
+    "token-expiry-0-delete-bound-pod": {
+      "conclusion": "contained_within_scope",
+      "description": "Deleting the bound pod invalidates the token before expiry.",
+      "instance": 0,
+      "objectives": {
+        "protect-edge-export-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "delete-bound-pod"
+    },
+    "token-expiry-0-wait-before-expiry": {
+      "conclusion": "residual_path",
+      "description": "The copied token is still valid after the wait.",
+      "instance": 0,
+      "objectives": {
+        "protect-edge-export-creds": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "wait-before-expiry"
+    },
+    "token-expiry-0-wait-past-expiry": {
+      "conclusion": "contained_within_scope",
+      "description": "Waiting until the observed expiry stops the copied token.",
+      "instance": 0,
+      "objectives": {
+        "protect-edge-export-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "wait-past-expiry"
+    },
+    "token-expiry-1-delete-bound-pod": {
+      "conclusion": "contained_within_scope",
+      "description": "Deleting the bound pod invalidates the token before expiry.",
+      "instance": 1,
+      "objectives": {
+        "protect-search-export-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "delete-bound-pod"
+    },
+    "token-expiry-1-wait-before-expiry": {
+      "conclusion": "residual_path",
+      "description": "The copied token is still valid after the wait.",
+      "instance": 1,
+      "objectives": {
+        "protect-search-export-creds": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "wait-before-expiry"
+    },
+    "token-expiry-1-wait-past-expiry": {
+      "conclusion": "contained_within_scope",
+      "description": "Waiting until the observed expiry stops the copied token.",
+      "instance": 1,
+      "objectives": {
+        "protect-search-export-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "wait-past-expiry"
+    },
+    "token-expiry-2-delete-bound-pod": {
+      "conclusion": "contained_within_scope",
+      "description": "Deleting the bound pod invalidates the token before expiry.",
+      "instance": 2,
+      "objectives": {
+        "protect-edge-export-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "delete-bound-pod"
+    },
+    "token-expiry-2-wait-before-expiry": {
+      "conclusion": "residual_path",
+      "description": "The copied token is still valid after the wait.",
+      "instance": 2,
+      "objectives": {
+        "protect-edge-export-creds": "violated"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "wait-before-expiry"
+    },
+    "token-expiry-2-wait-past-expiry": {
+      "conclusion": "contained_within_scope",
+      "description": "Waiting until the observed expiry stops the copied token.",
+      "instance": 2,
+      "objectives": {
+        "protect-edge-export-creds": "satisfied_within_scope"
+      },
+      "reference_complete": true,
+      "reference_states": {
+        "conservative_possible": 4,
+        "evidence_supported": 4
+      },
+      "template": "token-expiry",
+      "variant": "wait-past-expiry"
+    }
+  }
+}
