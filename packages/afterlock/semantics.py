@@ -282,7 +282,14 @@ def apply_defender_action(env: Env, action: DefenderAction) -> list[str]:
             new_version = max(svc.accepted_version, sec.version if sec else 0) + 1
             if sec is not None:
                 env.secrets[key] = replace(sec, version=new_version)
-            env.services[svc.name] = replace(svc, accepted_version=new_version)
+            grace = svc.grace
+            if svc.rotation_propagation_seconds > 0:
+                # S-SEC-5: the previously accepted version keeps working until the
+                # rotation has propagated to the service.
+                until = env.time + svc.rotation_propagation_seconds
+                grace = tuple(sorted({*grace, (svc.accepted_version, until)}))
+                notes.append(f"rotation of {svc.name} propagates for {svc.rotation_propagation_seconds}s; version {svc.accepted_version} accepted until {until}")
+            env.services[svc.name] = replace(svc, accepted_version=new_version, grace=grace)
     elif k == "wait":
         env.time += int(action.param("seconds"))
     else:  # pragma: no cover - parse_actions rejects unknown kinds
