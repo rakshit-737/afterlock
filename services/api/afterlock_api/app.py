@@ -10,22 +10,22 @@ Tokens are compared by SHA-256 digest in constant time and are never logged.
 This is local bootstrap authentication; shared deployments should front the
 API with OIDC (docs/deployment/authentication.md).
 
-Storage: in-memory, per process. PostgreSQL persistence is a documented,
-unimplemented milestone.
+Storage: ``afterlock_api.storage``. In-memory per process by default; PostgreSQL when
+``AFTERLOCK_DATABASE_URL`` is set. Synchronous endpoints compute in the request; the
+``*-jobs`` endpoints enqueue leased jobs (202) executed by ``afterlock_worker`` (PostgreSQL)
+or in-process after the response (in-memory).
 """
 
 from __future__ import annotations
 
 import hashlib
 import hmac
-import itertools
 import json
 import os
-import threading
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -36,6 +36,7 @@ from afterlock.evidence import BundleError, ReplayBundle, project
 from afterlock.model import ModelError, parse_analysis_input
 from afterlock.planner import PlannerConfig, plan
 from afterlock.results import analyze, explain
+from afterlock_api.storage import MemoryStorage, Scope, Storage, build_manifest, from_env, scope_for
 
 MAX_BODY_BYTES = 4 * 1024 * 1024
 ROLES = ("viewer", "analyst", "lab-operator")
@@ -52,6 +53,10 @@ class Principal:
 
     def may_analyze(self, cluster: str) -> bool:
         return self.role == "analyst" and self.may_read(cluster)
+
+    @property
+    def scope(self) -> Scope:
+        return scope_for(self.clusters)
 
 
 def _parse_tokens(spec: str) -> dict[bytes, Principal]:
@@ -85,17 +90,24 @@ class PlanRequest(BaseModel):
     max_evaluations: int = Field(default=2_000, ge=1, le=10_000)
 
 
-class Store:
-    def __init__(self) -> None:
-        self.lock = threading.Lock()
-        self.cases: dict[str, dict[str, Any]] = {}
-        self.analyses: dict[str, dict[str, Any]] = {}
-        self.seq = itertools.count(1)
+class JobRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    max_attempts: int = Field(default=3, ge=1, le=10)
 
 
-def create_app(token_spec: str | None = None) -> FastAPI:
+class AnalysisJobRequest(AnalysisRequest, JobRequest):
+    pass
+
+
+class PlanJobRequest(PlanRequest, JobRequest):
+    pass
+
+
+def create_app(token_spec: str | None = None, storage: Storage | None = None, run_jobs_inprocess: bool | None = None) -> FastAPI:
     tokens = _parse_tokens(token_spec if token_spec is not None else os.environ.get("AFTERLOCK_API_TOKENS", ""))
-    store = Store()
+    store: Storage = storage if storage is not None else from_env()
+    # Without PostgreSQL there is no separate worker; run queued jobs in-process after the response.
+    inprocess_worker = isinstance(store, MemoryStorage) if run_jobs_inprocess is None else run_jobs_inprocess
     app = FastAPI(title="AFTERLOCK API", version=__version__, docs_url="/v1/docs", openapi_url="/v1/openapi.json")
 
     @app.middleware("http")
@@ -116,21 +128,21 @@ def create_app(token_spec: str | None = None) -> FastAPI:
         raise HTTPException(401, "invalid token", headers={"WWW-Authenticate": "Bearer"})
 
     def get_case(case_id: str, p: Principal) -> dict[str, Any]:
-        c = store.cases.get(case_id)
-        # Same response for missing and unauthorized, so cluster membership does not leak.
-        if c is None or not p.may_read(c["cluster_id"]):
+        # Scoped lookup: missing and unauthorized give the same 404, so cluster membership does not leak.
+        c = store.get_case(case_id, p.scope)
+        if c is None:
             raise HTTPException(404, "case not found")
         return c
 
     def get_analysis(analysis_id: str, p: Principal) -> dict[str, Any]:
-        a = store.analyses.get(analysis_id)
-        if a is None or not p.may_read(a["cluster_id"]):
+        a = store.get_analysis(analysis_id, p.scope)
+        if a is None:
             raise HTTPException(404, "analysis not found")
         return a
 
     @app.get("/v1/health")
     def health() -> dict[str, Any]:
-        return {"status": "ok", "version": __version__, "storage": "in-memory"}
+        return {"status": "ok", "version": __version__, "storage": store.kind}
 
     @app.post("/v1/cases", status_code=201)
     def create_case(body: InlineBundle, p: Principal = Depends(principal)) -> dict[str, Any]:
@@ -146,17 +158,15 @@ def create_app(token_spec: str | None = None) -> FastAPI:
             raw, diag = project(bundle)
         except (BundleError, ModelError) as exc:
             raise HTTPException(422, {"conclusion": "invalid_input", "error": str(exc)}) from exc
-        with store.lock:
-            if body.case_id in store.cases:
-                raise HTTPException(409, "case already exists")
-            store.cases[body.case_id] = {"case_id": body.case_id, "cluster_id": body.cluster_id, "input": raw, "diagnostics": diag}
+        if not store.create_case({"case_id": body.case_id, "cluster_id": body.cluster_id, "input": raw, "diagnostics": diag}):
+            raise HTTPException(409, "case already exists")
         return {"case_id": body.case_id, "diagnostics": diag, "coverage_gaps": raw["coverage_gaps"]}
 
     @app.get("/v1/cases")
     def list_cases(limit: int = 50, offset: int = 0, p: Principal = Depends(principal)) -> dict[str, Any]:
         if not (1 <= limit <= 200) or offset < 0:
             raise HTTPException(422, "invalid pagination")
-        visible = sorted(c["case_id"] for c in store.cases.values() if p.may_read(c["cluster_id"]))
+        visible = store.list_case_ids(p.scope)
         return {"items": visible[offset : offset + limit], "total": len(visible)}
 
     @app.get("/v1/cases/{case_id}")
@@ -164,8 +174,7 @@ def create_app(token_spec: str | None = None) -> FastAPI:
         c = get_case(case_id, p)
         return {"case_id": case_id, "cluster_id": c["cluster_id"], "input": c["input"], "diagnostics": c["diagnostics"]}
 
-    @app.post("/v1/cases/{case_id}/analyses", status_code=201)
-    def run_analysis(case_id: str, body: AnalysisRequest, p: Principal = Depends(principal)) -> dict[str, Any]:
+    def analysis_input(case_id: str, body: AnalysisRequest, p: Principal) -> tuple[dict[str, Any], dict[str, Any]]:
         c = get_case(case_id, p)
         if not p.may_analyze(c["cluster_id"]):
             raise HTTPException(403, "analyst role for this cluster required")
@@ -173,15 +182,19 @@ def create_app(token_spec: str | None = None) -> FastAPI:
         if body.remediation is not None:
             raw["remediation"] = body.remediation
         try:
-            inp = parse_analysis_input(raw)
+            parse_analysis_input(raw)
         except ModelError as exc:
             raise HTTPException(422, {"conclusion": "invalid_input", "error": str(exc)}) from exc
         if body.mode not in MODES:  # explicit check: asserts are stripped under python -O
             raise HTTPException(422, "unsupported analysis mode")
-        result = analyze(inp, body.mode)
-        analysis_id = f"an-{next(store.seq):06d}"
-        with store.lock:
-            store.analyses[analysis_id] = {"id": analysis_id, "case_id": case_id, "cluster_id": c["cluster_id"], "input": raw, "result": result}
+        return c, raw
+
+    @app.post("/v1/cases/{case_id}/analyses", status_code=201)
+    def run_analysis(case_id: str, body: AnalysisRequest, p: Principal = Depends(principal)) -> dict[str, Any]:
+        c, raw = analysis_input(case_id, body, p)
+        result = analyze(parse_analysis_input(raw), body.mode)
+        manifest = build_manifest(c["cluster_id"], case_id, "analysis", {"input": raw, "mode": body.mode})
+        analysis_id = store.record_analysis(manifest, result)
         return {"id": analysis_id, "result": result}
 
     @app.get("/v1/analyses/{analysis_id}")
@@ -213,6 +226,59 @@ def create_app(token_spec: str | None = None) -> FastAPI:
         except ModelError as exc:
             raise HTTPException(422, {"conclusion": "invalid_input", "error": str(exc)}) from exc
         return plan(inp, PlannerConfig(max_length=body.max_length, max_evaluations=body.max_evaluations))
+
+    # Asynchronous jobs -----------------------------------------------------------------
+    def enqueue(manifest: dict[str, Any], p: Principal, max_attempts: int, background: BackgroundTasks) -> JSONResponse:
+        job = store.enqueue(manifest, created_by=p.name, max_attempts=max_attempts)
+        if inprocess_worker:
+            from afterlock_worker.runner import drain
+
+            background.add_task(drain, store, "api-inprocess")
+        return JSONResponse({"job_id": job["job_id"], "state": job["state"], "manifest_id": job["manifest_id"]}, status_code=202,
+                            headers={"Location": f"/v1/jobs/{job['job_id']}"})
+
+    @app.post("/v1/cases/{case_id}/analysis-jobs", status_code=202)
+    def create_analysis_job(case_id: str, body: AnalysisJobRequest, background: BackgroundTasks, p: Principal = Depends(principal)) -> JSONResponse:
+        c, raw = analysis_input(case_id, body, p)
+        return enqueue(build_manifest(c["cluster_id"], case_id, "analysis", {"input": raw, "mode": body.mode}), p, body.max_attempts, background)
+
+    @app.post("/v1/cases/{case_id}/plan-jobs", status_code=202)
+    def create_plan_job(case_id: str, body: PlanJobRequest, background: BackgroundTasks, p: Principal = Depends(principal)) -> JSONResponse:
+        c = get_case(case_id, p)
+        if not p.may_analyze(c["cluster_id"]):
+            raise HTTPException(403, "analyst role for this cluster required")
+        payload = {"input": c["input"], "max_length": body.max_length, "max_evaluations": body.max_evaluations}
+        return enqueue(build_manifest(c["cluster_id"], case_id, "plan", payload), p, body.max_attempts, background)
+
+    @app.post("/v1/analyses/{analysis_id}/verification-jobs", status_code=202)
+    def create_verification_job(analysis_id: str, background: BackgroundTasks, body: JobRequest | None = None,
+                                p: Principal = Depends(principal)) -> JSONResponse:
+        a = get_analysis(analysis_id, p)
+        if not p.may_analyze(a["cluster_id"]):
+            raise HTTPException(403, "analyst role for this cluster required")
+        payload = {"input": a["input"], "result": a["result"], "analysis_id": analysis_id}
+        attempts = body.max_attempts if body is not None else 3
+        return enqueue(build_manifest(a["cluster_id"], a["case_id"], "verification", payload), p, attempts, background)
+
+    @app.get("/v1/jobs/{job_id}")
+    def read_job(job_id: str, p: Principal = Depends(principal)) -> dict[str, Any]:
+        job = store.get_job(job_id, p.scope)
+        if job is None:
+            raise HTTPException(404, "job not found")
+        return job
+
+    @app.post("/v1/jobs/{job_id}/cancel", status_code=202)
+    def cancel_job(job_id: str, p: Principal = Depends(principal)) -> dict[str, Any]:
+        job = store.get_job(job_id, p.scope)
+        if job is None:
+            raise HTTPException(404, "job not found")
+        if not p.may_analyze(job["cluster_id"]):
+            raise HTTPException(403, "analyst role for this cluster required")
+        if job["state"] in ("succeeded", "failed", "cancelled"):
+            raise HTTPException(409, f"job already {job['state']}")
+        out = store.cancel_job(job_id, p.scope)
+        assert out is not None
+        return out
 
     @app.api_route("/v1/lab/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
     def lab(path: str, p: Principal = Depends(principal)) -> None:
