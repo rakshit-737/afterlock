@@ -1,0 +1,303 @@
+{
+ "schema": "afterlock.result/1",
+ "engine": {
+  "name": "afterlock",
+  "version": "0.1.0",
+  "mode": "full"
+ },
+ "case_id": "residual-token",
+ "cluster_id": "lab-local",
+ "input_digest": "sha256:efa3085862b576c7822ae3149ecdd517638fc245dd2ab2b9d8ddf13d5984f99f",
+ "semantic_profile": {
+  "id": "k8s-1.31-core-v1",
+  "kubernetes_version": "1.31"
+ },
+ "analysis_time": 1767270600,
+ "remediation": [
+  {
+   "kind": "remove_binding",
+   "name": "ci-pod-creator",
+   "namespace": "demo"
+  }
+ ],
+ "conclusion": {
+  "model": "residual_path",
+  "validation": "not_executed",
+  "scope": "Finite projection explored to fixpoint for every interval of the remediation sequence under the supported semantic profile; no statement is made about unsupported semantics, undeclared objectives, or activity outside the evidence boundary."
+ },
+ "objectives": [
+  {
+   "id": "protect-canary",
+   "kind": "no_downstream_use",
+   "target": [
+    "canary-service"
+   ],
+   "description": "Prevent use of any copied downstream credential against canary-service.",
+   "status": "violated",
+   "basis": "evidence_supported",
+   "witness": "w-protect-canary"
+  },
+  {
+   "id": "protect-secret",
+   "kind": "no_secret_read",
+   "target": [
+    "demo",
+    "release-credential"
+   ],
+   "description": "Prevent further Kubernetes reads of demo/release-credential by modeled attacker credentials.",
+   "status": "violated",
+   "basis": "evidence_supported",
+   "witness": "w-protect-secret"
+  }
+ ],
+ "witnesses": [
+  {
+   "id": "w-protect-canary",
+   "objective": "protect-canary",
+   "view": "evidence_supported",
+   "goal": [
+    "can_use_downstream",
+    "canary-service"
+   ],
+   "steps": [
+    {
+     "fact": [
+      "knows_secret",
+      "demo",
+      "release-credential",
+      "1"
+     ],
+     "rule": "EVIDENCE",
+     "interval": -2,
+     "premises": [],
+     "conditions": [],
+     "status": "observed",
+     "evidence": [
+      "lab-audit#2"
+     ]
+    },
+    {
+     "fact": [
+      "possesses_downstream",
+      "canary-service",
+      "1"
+     ],
+     "rule": "R-DOWNSTREAM-CREDENTIAL",
+     "interval": 0,
+     "premises": [
+      [
+       "knows_secret",
+       "demo",
+       "release-credential",
+       "1"
+      ]
+     ],
+     "conditions": [
+      {
+       "check": "service_sources",
+       "service": "canary-service",
+       "namespace": "demo",
+       "secret": "release-credential"
+      }
+     ],
+     "status": "inferred"
+    },
+    {
+     "fact": [
+      "can_use_downstream",
+      "canary-service"
+     ],
+     "rule": "R-USE-DOWNSTREAM",
+     "interval": 1,
+     "premises": [
+      [
+       "possesses_downstream",
+       "canary-service",
+       "1"
+      ]
+     ],
+     "conditions": [
+      {
+       "check": "service_accepts",
+       "service": "canary-service",
+       "version": 1
+      }
+     ],
+     "status": "inferred"
+    }
+   ]
+  },
+  {
+   "id": "w-protect-secret",
+   "objective": "protect-secret",
+   "view": "evidence_supported",
+   "goal": [
+    "can_read_secret",
+    "demo",
+    "release-credential"
+   ],
+   "steps": [
+    {
+     "fact": [
+      "possesses",
+      "observed:pod-attacker-0001:https://kubernetes.default.svc.cluster.local"
+     ],
+     "rule": "EVIDENCE",
+     "interval": -2,
+     "premises": [],
+     "conditions": [],
+     "status": "observed",
+     "evidence": [
+      "lab-audit#2"
+     ],
+     "note": "credential observed in use"
+    },
+    {
+     "fact": [
+      "can_read_secret",
+      "demo",
+      "release-credential"
+     ],
+     "rule": "R-READ-SECRET",
+     "interval": 1,
+     "premises": [
+      [
+       "possesses",
+       "observed:pod-attacker-0001:https://kubernetes.default.svc.cluster.local"
+      ]
+     ],
+     "conditions": [
+      {
+       "check": "credential_usable",
+       "credential": "observed:pod-attacker-0001:https://kubernetes.default.svc.cluster.local",
+       "time": 1767270600,
+       "detail": "unexpired, API audience, service account UID and bound object present"
+      },
+      {
+       "check": "authorized",
+       "username": "system:serviceaccount:demo:release-reader",
+       "verb": "get",
+       "resource": "secrets",
+       "namespace": "demo",
+       "name": "release-credential",
+       "via": [
+        "demo/release-reader-secret"
+       ]
+      },
+      {
+       "check": "secret_version",
+       "namespace": "demo",
+       "name": "release-credential",
+       "version": 1
+      }
+     ],
+     "status": "inferred"
+    }
+   ]
+  }
+ ],
+ "exposure_during_containment": [
+  {
+   "interval": 0,
+   "after_action": null,
+   "time": 1767270600,
+   "attacker_capabilities": [
+    [
+     "can_read_secret",
+     "demo",
+     "release-credential"
+    ],
+    [
+     "can_use_downstream",
+     "canary-service"
+    ]
+   ]
+  }
+ ],
+ "legitimate_operations": [
+  {
+   "id": "release-canary",
+   "kind": "use_downstream",
+   "preserved": true,
+   "detail": "reads current version 1, accepted by canary-service",
+   "description": "release-app authenticates to canary-service with the current credential."
+  },
+  {
+   "id": "release-read",
+   "kind": "read_secret",
+   "preserved": true,
+   "detail": "authorized via demo/release-reader-secret",
+   "description": "release-app reads the current release credential."
+  }
+ ],
+ "timeline": [
+  {
+   "interval": 0,
+   "time": 1767270600,
+   "defender_action": null,
+   "notes": [],
+   "reconciled_pods": [],
+   "attacker_capabilities": [
+    [
+     "can_read_secret",
+     "demo",
+     "release-credential"
+    ],
+    [
+     "can_use_downstream",
+     "canary-service"
+    ]
+   ]
+  },
+  {
+   "interval": 1,
+   "time": 1767270600,
+   "defender_action": "remove_binding(name=ci-pod-creator, namespace=demo)",
+   "notes": [],
+   "reconciled_pods": [],
+   "attacker_capabilities": [
+    [
+     "can_read_secret",
+     "demo",
+     "release-credential"
+    ],
+    [
+     "can_use_downstream",
+     "canary-service"
+    ]
+   ]
+  }
+ ],
+ "assumptions": [
+  "The API server validates bound service-account tokens against the current existence and UID of the service account and bound Pod.",
+  "Authorization changes (RBAC binding removal) are effective before the next defender step.",
+  "Pod deletion is complete (not merely pending) before the next defender step.",
+  "Controllers reconcile a replacement Pod before the next defender step; controller deletion cascades to owned Pods.",
+  "Only service-account-restriction admission policies are evaluated; any other admission policy makes affected creation feasibility unknown.",
+  "The attacker does not pause between defender steps.",
+  "Initial compromise of the CI service account is seeded, not exploited."
+ ],
+ "evidence_references": [
+  "lab-audit#2"
+ ],
+ "missing_coverage": [],
+ "analysis_bounds": {
+  "intervals": 2,
+  "max_intervals": 64,
+  "max_derivations": 100000,
+  "derivations_used": {
+   "evidence_supported": 10,
+   "conservative_possible": 10
+  },
+  "exhausted": true
+ },
+ "limitations": [
+  "Absence of evidence is not evidence of absence: the engine cannot establish that no credential was copied.",
+  "Conclusions cover only the supported semantic profile, declared objectives, and stated assumptions.",
+  "Previously disclosed information cannot be made unknown; only its usefulness can change.",
+  "Control-plane propagation is assumed complete before the next defender step; real propagation needs lab confirmation.",
+  "Host, node, or control-plane compromise is outside the model."
+ ],
+ "note": "result_digest identifies this content; it proves neither completeness nor truth.",
+ "result_digest": "sha256:512ff969d97ccb1f7b70842925b2164f51f95b5eaf321c029c8c29e8d5f7af11"
+}
