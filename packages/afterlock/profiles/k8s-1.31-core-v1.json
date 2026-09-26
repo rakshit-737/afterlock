@@ -3,7 +3,7 @@
   "kubernetes_version": "1.31",
   "api_audiences": ["https://kubernetes.default.svc.cluster.local", "https://kubernetes.default.svc"],
   "projected_token_ttl_seconds": 3600,
-  "conformance_status": "unverified: live kind conformance suite has not been executed for this profile",
+  "conformance_status": "partial: live kind spike (Kubernetes v1.31.4, receipt labs/receipts/spike-20260926T054738Z.json) agreed on 6/6 steps covering RBAC create/revoke, residual-token read, bound-token rejection after Pod deletion (S-TOK-4), and admission denial; other rules unverified",
   "assumptions": [
     "The API server validates bound service-account tokens against the current existence and UID of the service account and bound Pod.",
     "Authorization changes (RBAC binding removal) are effective before the next defender step.",
