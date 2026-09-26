@@ -5,8 +5,9 @@ evidence and writes an `afterlock.replay/1` bundle (`manifest.json`,
 `inventory.json`, `events.jsonl`, `case.json`) that
 `afterlock.evidence.ReplayBundle.load` and `project` accept.
 
-Status: implemented and tested against a fake clientset and fixture audit logs.
-**Not yet run against a live cluster** (see "Not verified" below).
+Status: implemented, tested against a fake clientset and fixture audit logs, and run
+against the live kind lab: `labs/receipts/collect-20260926T132806Z.json` is `lab_confirmed`
+for both windows (residual-token and targeted containment). See "Not verified" below.
 
 ## What it does
 
@@ -188,11 +189,10 @@ not used in the lab.
 
 ## Not verified
 
-* **Wired into the live lab but not yet run**: `scripts/lab collect` and the
-  `live-lab` workflow steps are written, not executed. Until a `collect-*.json` receipt
-  exists, there is no run against a real API server: watch expiry, bookmark
-  handling, metadata-client behaviour, audit `objectRef` contents for Pod creates, and
-  webhook delivery from a real kube-apiserver are exercised only with fakes.
+* **Live runs cover one lab scenario on one version** (Kubernetes v1.31.4, kind). Watch
+  expiry, bookmark handling, and webhook delivery **by kube-apiserver's own webhook backend**
+  are still exercised only with fakes; in the lab the supervisor relays the audit log to the
+  webhook receiver.
 * Watch expiry (410) is not forced in the lab; the fault injection is a process kill/restart.
-* The container image has not been built in this change.
+* The container image is built by the CI `containers` job; it is not run against the lab.
 * Correlation window and relist backoff are fixed defaults, not tuned.
