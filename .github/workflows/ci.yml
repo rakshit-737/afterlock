@@ -102,11 +102,9 @@ jobs:
         with:
           version: "0.11.32"
           activate-environment: true
-      - name: Install API (from uv.lock, frozen) and uvicorn (pinned as in services/api/Dockerfile)
+      - name: Install API and uvicorn (from uv.lock, frozen)
         working-directory: .
-        run: |
-          uv sync --frozen --extra dev
-          uv pip install "uvicorn==0.30.6"
+        run: uv sync --frozen --extra dev --extra api
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: End-to-end tests (Playwright + axe)
