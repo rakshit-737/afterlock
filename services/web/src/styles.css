@@ -117,4 +117,38 @@ ul.plain > li { margin: 0.35rem 0; }
 .plan { border: 1px solid var(--border); border-radius: 4px; padding: 0.75rem; min-width: 0; }
 .plan h4 { margin-top: 0; }
 
+/* Provenance graph (hand-rolled layered SVG). Status is written in each node; the border
+   style repeats it (solid observed, dashed inferred, dotted assumed) so color is never the only cue. */
+.graph-wrap { overflow-x: auto; margin: 0.5rem 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+.prov-graph { display: block; }
+.prov-edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.prov-arrowhead { fill: var(--muted); }
+.prov-node rect { fill: var(--surface); stroke: var(--text); stroke-width: 1.5; }
+.prov-node text { fill: var(--text); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.prov-node .prov-sub { fill: var(--muted); font-family: system-ui, sans-serif; }
+.prov-observed rect { fill: var(--ok-bg); stroke: var(--ok-fg); }
+.prov-observed text { fill: var(--ok-fg); }
+.prov-inferred rect { fill: var(--unknown-bg); stroke: var(--unknown-fg); stroke-dasharray: 6 3; }
+.prov-inferred text { fill: var(--unknown-fg); }
+.prov-assumed rect { fill: var(--warn-bg); stroke: var(--warn-fg); stroke-dasharray: 2 3; }
+.prov-assumed text { fill: var(--warn-fg); }
+.prov-rule rect { fill: var(--neutral-bg); stroke: var(--neutral-fg); }
+.prov-rule text { fill: var(--neutral-fg); }
+.prov-node[role="button"] { cursor: pointer; }
+.prov-node[role="button"]:focus { outline: none; }
+.prov-node[role="button"]:focus-visible rect, .prov-node[role="button"]:hover rect { stroke: var(--focus); stroke-width: 3; }
+.prov-table { margin-top: 0.75rem; font-size: 0.9rem; }
+.prov-table caption { text-align: left; font-weight: 600; padding-bottom: 0.25rem; }
+.drawer { border: 2px solid var(--focus); border-radius: 6px; padding: 0.75rem 1rem; margin-top: 0.75rem; background: var(--surface); }
+.drawer h4 { margin-top: 0; }
+
+.cred { border-left: 3px solid var(--border); padding-left: 0.75rem; margin: 0.75rem 0; }
+.lifecycle { margin: 0.25rem 0; padding-left: 1.25rem; }
+.lifecycle > li { margin: 0.3rem 0; }
+
+.job { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.job button { margin: 0; }
+.check { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+.check input { width: auto; }
+
 pre.explain { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); padding: 0.75rem; border-radius: 4px; }
