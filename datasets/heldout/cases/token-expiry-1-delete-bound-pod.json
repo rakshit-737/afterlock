@@ -1,0 +1,114 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "Deleting the bound pod invalidates the token before expiry."
+  ],
+  "bounds": {},
+  "case_id": "token-expiry-1-delete-bound-pod",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-search-exporter-0",
+      "expires_at": 1800000300,
+      "id": "copied",
+      "kind": "sa_token",
+      "sa_uid": "sa-search-exporter",
+      "username": "system:serviceaccount:search:exporter"
+    }
+  ],
+  "initial_facts": [
+    {
+      "args": [
+        "copied"
+      ],
+      "evidence": [],
+      "kind": "possesses_credential",
+      "status": "observed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "exporter-read",
+        "namespace": "search",
+        "role_kind": "Role",
+        "role_name": "read",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "exporter",
+            "namespace": "search"
+          }
+        ]
+      }
+    ],
+    "controllers": [],
+    "pods": [
+      {
+        "name": "exporter-0",
+        "namespace": "search",
+        "service_account": "exporter",
+        "uid": "pod-search-exporter-0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "read",
+        "namespace": "search",
+        "rules": [
+          {
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "export-creds",
+        "namespace": "search",
+        "uid": "sec-search-ec",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "exporter",
+        "namespace": "search",
+        "uid": "sa-search-exporter"
+      }
+    ],
+    "services": []
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-search-export-creds",
+      "kind": "no_secret_read",
+      "namespace": "search",
+      "secret": "export-creds"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "delete_pod",
+      "uid": "pod-search-exporter-0"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
