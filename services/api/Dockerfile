@@ -7,7 +7,7 @@ COPY pyproject.toml README.md ./
 COPY packages ./packages
 COPY services/api ./services/api
 COPY services/worker ./services/worker
-RUN pip install --no-cache-dir --prefix=/install ".[api,postgres]" "uvicorn==0.30.6"
+RUN pip install --no-cache-dir --prefix=/install ".[api,postgres]"
 
 FROM python:3.11-slim@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e
 COPY --from=build /install /usr/local
