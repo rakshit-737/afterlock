@@ -230,7 +230,7 @@ trust boundary. It is not a CVSS score.
 | R3 | Attribution through deleted controller Pods (U-3): observed reads may be dropped, so a copied credential is missed | engine review U-3, E-1 partial | Medium | Emit a coverage gap "request from unknown Pod UID", which yields `unknown`, never containment |
 | R4 | Split or custom-encoded tokens bypass pattern redaction (U-4) | engine review | Medium | Keep the allowlisted-field design and add an entropy heuristic on persisted free-text fields |
 | R5 | Profile trust (U-2): direct API/CLI input can supply its own profile (e.g. shorter TTL) | engine review | Medium | Pin the profile server-side for API input and reject a mismatched `profile` |
-| R6 | API image installs `.[api,postgres]` with pip, not from `uv.lock`, without hashes | starter #9, API review | Medium | Build from `uv export --frozen --no-hashes`/`--hashes` requirements. Set an expiry date on the exception |
+| R6 | ~~API image installs `.[api,postgres]` with pip, not from `uv.lock`, without hashes~~ **Resolved:** the image installs `uv export --frozen` output with `pip --require-hashes --no-deps`; CI diffs the image's `pip freeze` against the lock (see supply-chain.md). Pending first CI build of the new Dockerfile | starter #9, API review | Medium | Done; confirm on the first CI run of the `containers` job |
 | R7 | No release provenance, signing, or image SBOM; no release workflow | supply-chain.md | Medium (release blocker) | Add a tag-triggered, protected workflow with SLSA provenance and signing |
 | R8 | Unbounded PostgreSQL job queue per principal; FIFO across clusters | API review | Medium | Per-principal/cluster quotas and fair scheduling |
 | R9 | All limits (concurrency, SSE streams, memory store caps) are per process | status.md, API review | Low–Medium | Document it for multi-replica deployments or move limits to the DB |
@@ -319,7 +319,7 @@ overstated it, and this audit fixed the inconsistencies.
 1. Resolve R1 (possible-history expiry semantics). It is the one open item that could produce
    false containment.
 2. Update `status.md` and `verification.md` as listed in section 3.
-3. Build the API image from the lockfile, or document an exception with an expiry (R6).
+3. ~~Build the API image from the lockfile (R6).~~ Done; needs a green `containers` CI run.
 4. Get a CI run on the final commit, then tag. Say "research-grade" in the release notes.
 
 ### Prioritized next steps
@@ -328,6 +328,6 @@ overstated it, and this audit fixed the inconsistencies.
 2. Lab steps for S-TOK-1..3, S-SEC-1 list/watch, S-WL-2..4, `defender-race`, and the naive plan (R2, R16).
 3. Kubernetes version matrix and a multi-node cluster (R15).
 4. Execute held-out templates in the lab to get outcome-derived labels (R17).
-5. Supply chain: lockfile-based image, release provenance and signing (R6, R7).
+5. Supply chain: release provenance and signing (R7). The lockfile-based image (R6) is done.
 6. Observability and a scaling benchmark (prompt 17, the 1,000-entity target). Both are currently not met.
 7. Third-party reproduction of `scripts/bootstrap` + `make demo` and a live-lab run on a non-GitHub host.
