@@ -1,0 +1,27 @@
+# Negative control: a built-in ValidatingAdmissionPolicy (GA in Kubernetes 1.30)
+# preventing the CI identity from selecting any service account but its own.
+# Modeled by profile k8s-1.31-core-v1 as kind "service-account-restriction".
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata: {name: afterlock-restrict-ci-service-accounts, labels: {afterlock.dev/lab: "true"}}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    namespaceSelector: {matchLabels: {afterlock.dev/lab: "true"}}
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  validations:
+    - expression: >-
+        request.userInfo.username != 'system:serviceaccount:demo:ci-runner' ||
+        (has(object.spec.serviceAccountName) && object.spec.serviceAccountName == 'ci-runner')
+      message: "ci-runner may only create pods running as ci-runner"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata: {name: afterlock-restrict-ci-service-accounts, labels: {afterlock.dev/lab: "true"}}
+spec:
+  policyName: afterlock-restrict-ci-service-accounts
+  validationActions: ["Deny"]
