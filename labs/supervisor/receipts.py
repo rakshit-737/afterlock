@@ -30,6 +30,21 @@ def agrees(observed: int, expect: str) -> bool:
     return (200 <= observed < 300) == (expect == "answer_ok")
 
 
+# Checks the supervisor performs itself (collected-bundle validation, leak scan,
+# gap records) use the same expectation modes as API observations, so validation()
+# and summarise() treat them uniformly. They carry "observation": "supervisor-check"
+# and a synthetic status: CHECK_PASSED (200) when the check holds, CHECK_FAILED (422)
+# when it does not. Status 0 is never used for a check.
+CHECK_PASSED = 200
+CHECK_FAILED = 422
+
+
+def check_receipt(step: str, passed: bool, prediction: str, **extra: Any) -> dict[str, Any]:
+    observed = CHECK_PASSED if passed else CHECK_FAILED
+    return {"step": step, "model_prediction": prediction, "expect": "answer_ok", "observed_http_status": observed,
+            "agrees": agrees(observed, "answer_ok"), "observation": "supervisor-check", **extra}
+
+
 def validation(receipts: list[dict[str, Any]]) -> str:
     return "lab_confirmed" if receipts and all(r["agrees"] for r in receipts) else "lab_contradicted"
 
