@@ -14,13 +14,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node scripts/lint-policy.mjs",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
     "@testing-library/react": "16.3.0",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
