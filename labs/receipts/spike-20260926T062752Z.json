@@ -1,0 +1,81 @@
+{
+  "lab": {
+    "server": "https://127.0.0.1:34179",
+    "ca_sha256": "71d2dbfc010f7db9de60b64b45c8b8643eb43e632e8d88c7f525d71b2b7fb6bd",
+    "kubernetes_version": "v1.31.4",
+    "lab_instance": "520e67c60aeeb075"
+  },
+  "validation": "lab_confirmed",
+  "receipts": [
+    {
+      "step": "ci-creates-release-reader-pod",
+      "model_prediction": "may_create",
+      "observed_http_status": 201,
+      "agrees": true
+    },
+    {
+      "step": "attacker-reads-secret",
+      "model_prediction": "violated",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "copied-credential-accepted-by-canary",
+      "model_prediction": "violated",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "ci-creation-blocked-after-binding-removal",
+      "model_prediction": "blocked",
+      "observed_http_status": 403,
+      "agrees": true,
+      "elapsed_seconds": 0.01
+    },
+    {
+      "step": "residual-token-still-reads-secret",
+      "model_prediction": "violated",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "bound-token-rejected-after-pod-deletion",
+      "model_prediction": "rejected",
+      "observed_http_status": 401,
+      "agrees": true,
+      "pod_uid": "1d4a17da-4140-4695-99a4-e6a4e6c2f4d9",
+      "elapsed_seconds_after_deletion_complete": 0.01
+    },
+    {
+      "step": "copied-credential-survives-kubernetes-containment",
+      "model_prediction": "violated",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "rotation-acknowledged-by-canary",
+      "model_prediction": "acknowledged",
+      "observed_http_status": 200,
+      "agrees": true,
+      "elapsed_seconds": 54.68
+    },
+    {
+      "step": "copied-credential-rejected-after-rotation",
+      "model_prediction": "satisfied_within_scope",
+      "observed_http_status": 401,
+      "agrees": true
+    },
+    {
+      "step": "legitimate-workload-uses-rotated-credential",
+      "model_prediction": "preserved",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "negative-control-admission-denies",
+      "model_prediction": "satisfied_within_scope",
+      "observed_http_status": 422,
+      "agrees": true
+    }
+  ]
+}
