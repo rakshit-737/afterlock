@@ -36,7 +36,7 @@ exists yet.
 | ID | Rule | Lab step |
 |---|---|---|
 | S-WL-1 | `create pods` in a namespace lets the creator run a Pod as any SA in that namespace, subject to admission. | `ci-creates-release-reader-pod` |
-| S-WL-2 | `create deployments` likewise creates a controller. The controller keeps one Pod alive: after deletion it creates a replacement with UID `<controller>-p<k>` before the next step. | planned |
+| S-WL-2 | `create deployments` likewise creates a controller. The controller keeps one Pod alive: after deletion it creates a replacement with UID `<controller>-p<k>` (the next `k` whose UID no existing Pod has) before the next step. | planned |
 | S-WL-3 | Deleting a controller cascades to its Pods. | planned |
 | S-WL-4 | `create pods/exec` on a named Pod grants control of that Pod. | planned |
 | S-WL-5 | Pod deletion is complete before the next defender step. | `bound-token-rejected-after-pod-deletion` records the actual delay |
@@ -66,7 +66,9 @@ exists yet.
 allowlist of UIDs to keep), `delete_service_account`, `rotate_downstream_credential`, and
 `wait`. Actions that reference absent objects are no-ops and produce a note. UIDs with the
 prefixes `model-pod:` and `model-deploy:` are reserved for objects the engine models but
-never observed, and cannot be targeted individually.
+never observed, and cannot be targeted individually. Input that gives an inventory Pod or
+controller, or a `controls_pod` / `controls_controller` / `historical_pod` fact, such a UID
+is rejected as invalid.
 
 ## Attacker model
 
