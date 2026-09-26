@@ -1,0 +1,40 @@
+# Network-isolation fixture. The "outsider" namespace is NOT allowed to reach
+# the canary, and attacker pods in demo are NOT allowed to reach the outsider.
+# The outsider pod serves HTTP (an empty directory, so every path answers 404)
+# so that "no answer" can be told apart from "nothing listening": the
+# supervisor first proves the outsider IS reachable from an allowed client
+# (canary-probe) before recording that a denied client gets no answer.
+# Isolation is enforced only by a policy-enforcing CNI (Calico, installed by
+# the supervisor); the spike verifies it instead of trusting these manifests.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: outsider
+  labels:
+    afterlock.dev/lab: "true"
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: outsider, namespace: outsider, labels: {afterlock.dev/lab: "true", app: outsider}}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: c
+      image: busybox:1.36.1
+      command: ["httpd", "-f", "-p", "8080", "-h", "/www"]
+      ports: [{containerPort: 8080}]
+      readinessProbe: {tcpSocket: {port: 8080}, periodSeconds: 2}
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
+      volumeMounts:
+        - {name: www, mountPath: /www, readOnly: true}
+  volumes:
+    - name: www
+      emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: outsider, namespace: outsider, labels: {afterlock.dev/lab: "true"}}
+spec:
+  selector: {app: outsider}
+  ports: [{port: 8080, targetPort: 8080}]
