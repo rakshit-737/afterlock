@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 
 from afterlock_api import migrate
-from afterlock_api.storage import MemoryStorage, PostgresStorage, Storage, build_manifest
+from afterlock_api.storage import AmbiguousCase, MemoryStorage, PostgresStorage, Storage, StorageFull, build_manifest
 from afterlock_worker.runner import PermanentJobError, process_one
 
 from conftest import ROOT, raw_case
@@ -284,7 +284,7 @@ def test_schema_upgrade_from_0001_preserves_data_and_immutability(pg_schema: str
         PostgresStorage(PG_URL, schema=pg_schema)
     old = PostgresStorage(PG_URL, schema=pg_schema, check_schema=False)
     job = job_for(old)
-    assert _pg_migrate(pg_schema) == [2]
+    assert _pg_migrate(pg_schema) == [2, 3]
     assert _pg_migrate(pg_schema) == []
     s = PostgresStorage(PG_URL, schema=pg_schema)
     assert s.get_job(job["job_id"], None)["state"] == "queued"
@@ -319,3 +319,43 @@ def test_concurrent_claims_never_share_a_job(pg_schema: str) -> None:
     for t in threads:
         t.join()
     assert sorted(got) == sorted(jobs)
+
+
+def test_case_ids_are_unique_per_cluster_not_globally(backend: Backend) -> None:
+    s = backend.storage
+    assert s.create_case(fake_case("case-a", "c1"))
+    # The same id in another cluster is a different case, not a conflict (no cross-cluster leak).
+    assert s.create_case(fake_case("case-a", "c2"))
+    assert not s.create_case(fake_case("case-a", "c2"))
+    assert s.get_case("case-a", frozenset({"c2"}))["cluster_id"] == "c2"
+    with pytest.raises(AmbiguousCase):
+        s.get_case("case-a", None)
+    assert s.get_case("case-a", None, "c1")["cluster_id"] == "c1"
+    assert s.get_case("case-a", frozenset({"c2"}), "c1") is None  # naming a cluster never widens scope
+    assert s.list_cases(None) == [{"case_id": "case-a", "cluster_id": "c1"}, {"case_id": "case-a", "cluster_id": "c2"}]
+    assert s.list_case_ids(frozenset({"c1"})) == ["case-a"]
+    m1 = build_manifest("c1", "case-a", "analysis", {"input": {"n": 1}, "mode": "full"})
+    m2 = build_manifest("c2", "case-a", "analysis", {"input": {"n": 1}, "mode": "full"})
+    j1, j2 = s.enqueue(m1, created_by="p"), s.enqueue(m2, created_by="p")
+    assert s.get_job(j1["job_id"], frozenset({"c2"})) is None and s.get_job(j2["job_id"], frozenset({"c2"})) is not None
+
+
+def test_memory_storage_is_bounded() -> None:
+    s = MemoryStorage(max_cases=1, max_results=1, max_jobs=1)
+    assert s.create_case(fake_case("case-a"))
+    with pytest.raises(StorageFull):
+        s.create_case(fake_case("case-b"))
+    assert not s.create_case(fake_case("case-a"))  # a duplicate is still reported as a duplicate
+    m = build_manifest("c1", "case-a", "analysis", {"input": {"n": 1}, "mode": "full"})
+    s.record_analysis(m, {"ok": 1})
+    with pytest.raises(StorageFull):
+        s.record_analysis(m, {"ok": 2})
+    job = s.enqueue(m, created_by="p")
+    with pytest.raises(StorageFull):
+        s.enqueue(m, created_by="p")
+    lease = s.claim("w", 30)
+    assert lease is not None and s.complete(lease, {"ok": 3}) is None  # result cap: refused and visibly failed
+    view = s.get_job(job["job_id"], None)
+    assert view["state"] == "failed" and "limit" in view["last_error"]
+    with pytest.raises(ValueError):
+        MemoryStorage(max_cases=0)
