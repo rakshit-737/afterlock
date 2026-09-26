@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# Portable verification: lint, types, tests, replay determinism, benchmark regeneration.
+set -eu
+cd "$(dirname "$0")/.."
+PY="${PYTHON:-.venv/bin/python}"
+"$PY" -m ruff check packages services tests datasets benchmarks
+"$PY" -m mypy
+"$PY" -m pytest -q
+"$PY" datasets/generators/build_semantic_cases.py >/dev/null
+git diff --exit-code -- datasets/replay || { echo "replay bundles are not reproducible from the generator"; exit 1; }
+echo "portable verification passed (live-lab checks NOT run; see docs/engineering/verification.md)"
