@@ -9,6 +9,8 @@ __pycache__/
 .afterlock-demo/
 .env
 labs/.state/
+# Collected live-lab bundles are CI artifacts, uploaded only after a clean leak scan.
+labs/collected/
 *.egg-info/
 build/
 dist/
