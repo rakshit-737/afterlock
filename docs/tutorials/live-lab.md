@@ -40,6 +40,8 @@ Or run the `live-lab` workflow (manual dispatch) on a disposable GitHub-hosted r
 | With the CEL admission policy, CI cannot select `release-reader` | denied |
 | Copied Secret value works at the canary, before and after Kubernetes containment | accepted |
 | After rotation, the canary accepts the new value (time recorded) and rejects the copy | rejected |
+| S-SEC-5: old value probed right after rotation, model with measured `d` and no wait | violated (old value accepted) |
+| S-SEC-5: old value probed at least `d` + 2 s after rotation, model after `wait d` | satisfied_within_scope (old value refused) |
 | Legitimate workload reads the rotated value and still uses the canary | preserved |
 | Control: canary answers `canary-probe` in `demo` | reachable (401 without credential) |
 | A Pod in namespace `outsider` gets **no answer** from the canary | unreachable |
@@ -86,9 +88,35 @@ period. `cluster.yaml` lowers `syncFrequency` to 10 s for the lab; the delay is 
 measured and recorded in every receipt, and it is a property of this lab configuration,
 not of Kubernetes in general.
 
+### S-SEC-5 receipt (written, not yet executed)
+
+Right after the rotation is written, the supervisor probes the old value once, then polls
+new and old every ~2 s until the new value is accepted and the old one refused. That
+acknowledgement time `ack` is an upper bound on when the old value stopped working; the
+model is parameterised with `d = ceil(ack)` (`rotation_propagation_seconds` on
+`canary-service`, applied to the `targeted-containment` analysis input), which
+over-approximates the window. Two steps are recorded:
+
+- `s-sec-5-old-credential-accepted-right-after-rotation`: observed = the first probe;
+  prediction = model with `d` and no wait (`violated`).
+- `s-sec-5-old-credential-rejected-after-propagation-wait`: probe at least `d` + 2 s after
+  the rotation; prediction = model after `wait d` (`satisfied_within_scope`).
+
+Both carry `d`, `ack`, and a `window` summary of every old-value probe (first probe time
+and status, last acceptance, first refusal, and whether the value was ever accepted again
+after a refusal). Limits, stated plainly: `d` is measured in the same run that is checked,
+so this confirms the model is consistent with the observed timing, not that `d` was
+predicted; one late probe does not prove the old value can never work again; and the probe
+latency (a `kubectl exec`, ~0.3–1 s) sets the resolution. If the first probe already sees a
+refusal, the window was not observed; the rotation is repeated (old = the previously
+accepted value) up to 3 times, every attempt is recorded, and if none observes the window
+the step disagrees and the run is `lab_contradicted` rather than passing.
+
 ## Collector run (`collect`)
 
-**Status: written, not yet executed.** `scripts/lab collect` runs `reset`, then the spike
+**Status:** the first window (residual-token) is lab-confirmed
+(`labs/receipts/collect-20260926T105833Z.json`); the second window (targeted containment)
+and the S-SEC-5 steps are written, not yet executed. `scripts/lab collect` runs `reset`, then the spike
 with the Go collector (`services/collector`) running on the host:
 
 1. `labs/kind/cluster.yaml` enables API server audit logging with
@@ -107,7 +135,33 @@ with the Go collector (`services/collector`) running on the host:
    ingests the audit log, relists inventory and writes the `afterlock.replay/1` bundle with a
    case derived from `datasets/replay/residual-token/case.json` (live UIDs; the downstream
    canary objective is dropped because the collector does not observe services).
-5. The spike then continues as usual.
+5. Second window (written, not yet executed): right after C, process D starts on a
+   **fresh spool** (no injected restart) with a case derived from
+   `datasets/replay/targeted-containment/case.json`, while the attacker Pod still exists.
+   This matters: the audit log has no Pod UIDs, and the collector correlates a Pod creation
+   with a UID only from Pods it observed itself. D cannot re-read the audit log, so at the
+   second checkpoint (binding removed, attacker Pod deleted, credential rotated, before the
+   negative control restores the binding) the supervisor relays the API server audit log to
+   D's loopback webhook receiver (`--insecure-http-loopback`, random bearer token in a 0600
+   file) as `audit.k8s.io/v1` EventList batches; D is then stopped and writes the bundle.
+6. The spike then continues as usual.
+
+The second-window case keeps only what the collector can observe: `protect-secret`,
+`release-read`, `remove_binding` and `delete_pods_except` (keep UID = live `release-app`
+UID; any other template UID is refused, never invented). `protect-canary`,
+`release-canary` and `rotate_downstream_credential` are dropped and listed in the
+receipt's `coverage_limitations` — the canary's accepted value is not a Kubernetes object
+the collector sees; those items are checked only by the canary probes. The case's
+`analysis_time` is D's start (the collector reads the case at start).
+
+Any coverage gap makes the engine report `unknown`, and a real lab bundle always has
+`audit-before-window` (cluster setup, earlier runs) and `rbac-rule-unmodeled` (non-resource
+URL rules) gaps. The comparison therefore reports two results: the **raw** result (no gap
+resolved, expected `unknown`) and a result in which only those two gap kinds are declared
+resolved, each with a stated reason added to the case assumptions
+(`collected.GAP_RESOLUTIONS`). Any other gap (collector restart, uncorrelated Pod,
+unsynced inventory, dropped/malformed audit, stale source) or engine unknown blocks the
+match; so does a raw `violated`/`possibly_violated`.
 
 Extra receipt steps (supervisor checks: `observation: "supervisor-check"`, status 200 when
 the check holds, 422 when it fails, `expect: answer_ok`):
@@ -120,9 +174,16 @@ the check holds, 422 when it fails, `expect: answer_ok`):
 | `collected-conclusion-matches-residual-token` | same model conclusion (`residual_path`) and same status on shared objectives as the hand-authored case |
 | `collector-restart-recorded-as-gap` | at least two `collector-restart` gap records (kill of A, stop of B) |
 | `collected-bundle-has-no-credential-material` | no file produced (bundles, spool, logs, result) contains the CI token, the stolen Pod token, the copied Secret value or the collector token (raw, base64, base64url), a JWT, private key, bearer header or canary |
+| `collector-writes-contained-bundle` | every audit batch relayed with HTTP 200, no malformed audit line, D exits 0 and wrote a bundle |
+| `contained-bundle-validates` | the second bundle loads and projects with no rejected or conflicting events |
+| `contained-inventory-shows-attack-and-containment` | Pod create collected and correlated to the live (now deleted) UID/SA; binding and Pod delete collected; both absent from inventory; only the kept UID runs as `release-reader`; a patch/update of `release-credential` (rotation) collected |
+| `collected-conclusion-matches-targeted-containment` | no blocking gap, no raw violation, and with the declared resolutions the conclusion (`contained_within_scope`) and `protect-secret` match the hand-authored case; raw result, resolved gap kinds and coverage limitations recorded |
+| `contained-bundle-has-no-credential-material` | leak scan over every file of both windows, adding the rotated values, the legitimate-workload token and the webhook token |
 
 The receipt is `labs/receipts/collect-<ts>.json`. The bundle and its analysis result are
-copied to `labs/collected/residual-token-<ts>/` **only if the leak scan is clean**; the
+copied to `labs/collected/residual-token-<ts>/` (and the second window's bundle, raw and
+gap-resolved results to `labs/collected/targeted-containment-<ts>/`)
+**only if the leak scan is clean**; the
 workflow uploads that directory as the `collected-bundle` artifact only after `collect`
 succeeded. The collector binary is built by the workflow (`AFTERLOCK_COLLECTOR_BIN`);
 locally, `collect` runs `go build` itself.
