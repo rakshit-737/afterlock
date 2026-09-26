@@ -337,6 +337,7 @@ class AnalysisInput:
     assumptions: tuple[str, ...]
     bounds: Bounds
     raw_digest: str
+    history_start: int | None = None  # None: possible-history window unbounded below
 
     def credential(self, cred_id: str) -> CredentialSpec:
         for c in self.credentials:
@@ -626,6 +627,11 @@ def parse_analysis_input(raw: Mapping[str, Any]) -> AnalysisInput:
     w = "analysis input"
     analysis_time = _int(raw, "analysis_time", w)
     assert analysis_time is not None
+    # Optional (backward compatible): earliest time the seeded attacker state may have
+    # been held. Absent means the possible-history window is unbounded below.
+    history_start = _int(raw, "history_start", w, optional=True)
+    if history_start is not None and history_start > analysis_time:
+        raise ModelError("history_start must not be after analysis_time")
     profile = parse_profile(_obj(raw.get("profile"), "profile"))
     inventory = parse_inventory(_obj(raw.get("inventory"), "inventory"))
 
@@ -736,6 +742,7 @@ def parse_analysis_input(raw: Mapping[str, Any]) -> AnalysisInput:
         case_id=_req(raw, "case_id", w),
         cluster_id=_req(raw, "cluster_id", w),
         analysis_time=analysis_time,
+        history_start=history_start,
         profile=profile,
         inventory=inventory,
         credentials=tuple(sorted(creds)),
