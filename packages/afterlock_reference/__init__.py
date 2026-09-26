@@ -40,7 +40,10 @@ class ReferenceLimits:
 #   ctrls    frozenset[(uid, ns, name, sa, auds)]
 #   bindings frozenset[(ns|None, name)]           (binding bodies are static)
 #   secrets  frozenset[(ns, name, version)]
-#   services frozenset[(name, src_ns, src_name, accepted)]
+#   services frozenset[(name, src_ns, src_name, accepted, delay, old)]
+#            delay = seconds a rotation takes to reach the service (0: atomic)
+#            old   = frozenset[(version, deadline)]: superseded versions the
+#                    service keeps honouring while time < deadline
 #   counters frozenset[(ctrl_uid, k)]
 
 
@@ -58,7 +61,10 @@ def _env0(inv: dict[str, Any], t: int) -> tuple:
         ),
         frozenset((b.get("namespace"), b["name"]) for b in inv.get("bindings", [])),
         frozenset((s["namespace"], s["name"], s["version"]) for s in inv.get("secrets", [])),
-        frozenset((s["name"], s["source_namespace"], s["source_secret"], s["accepted_version"]) for s in inv.get("services", [])),
+        frozenset(
+            (s["name"], s["source_namespace"], s["source_secret"], s["accepted_version"], int(s.get("rotation_propagation_seconds") or 0), frozenset())
+            for s in inv.get("services", [])
+        ),
         frozenset(),
     )
 
@@ -165,6 +171,16 @@ def _admission(st: _Static, creator: str, ns: str, sa: str) -> str:
     return verdict
 
 
+def _honours(env: tuple, svc: tuple, version: int) -> bool:
+    """Does downstream service ``svc`` accept credential ``version`` at env time?"""
+    if svc[3] == version:
+        return True
+    for old_version, deadline in svc[5]:
+        if old_version == version and env[0] < deadline:
+            return True
+    return False
+
+
 def _reconcile(env: tuple) -> tuple:
     t, sas, pods, ctrls, binds, secs, svcs, counters = env
     pods = set(pods)
@@ -201,11 +217,13 @@ def _defend(env: tuple, a: dict[str, Any]) -> tuple:
     elif k == "rotate_downstream_credential":
         svc = [s for s in svcs if s[0] == a["service"]]
         if svc:
-            name, sns, sname, acc = svc[0]
+            name, sns, sname, acc, delay, old = svc[0]
             cur = [s for s in secs if (s[0], s[1]) == (sns, sname)]
             new = max([acc] + [c[2] for c in cur]) + 1
             secs = frozenset(s for s in secs if (s[0], s[1]) != (sns, sname)) | ({(sns, sname, new)} if cur else set())
-            svcs = (svcs - {svc[0]}) | {(name, sns, sname, new)}
+            if delay:
+                old = old | {(acc, t + delay)}
+            svcs = (svcs - {svc[0]}) | {(name, sns, sname, new, delay, old)}
     elif k == "wait":
         t = t + int(a["seconds"])
     else:
@@ -310,7 +328,7 @@ def _goals(st: _Static, env: tuple, att: tuple, raw: dict[str, Any]) -> set[tupl
             for svc in env[6]:
                 if svc[0] != o["service"]:
                     continue
-                if any((k[0], k[1], k[2]) == (svc[1], svc[2], svc[3]) for k in know):
+                if any((k[0], k[1]) == (svc[1], svc[2]) and _honours(env, svc, k[2]) for k in know):
                     out.add(o["id"])
     return out
 
@@ -551,5 +569,5 @@ def _check(st: _Static, env: tuple, c: dict[str, Any], fact: tuple, derived: dic
     if k == "service_sources":
         return [] if any(s[0] == c["service"] and (s[1], s[2]) == (c["namespace"], c["secret"]) for s in env[6]) else [f"{fact}: service does not source secret"]
     if k == "service_accepts":
-        return [] if any(s[0] == c["service"] and s[3] == c["version"] for s in env[6]) else [f"{fact}: service does not accept version"]
+        return [] if any(s[0] == c["service"] and _honours(env, s, int(c["version"])) for s in env[6]) else [f"{fact}: service does not accept version"]
     return [f"{fact}: unknown condition {k}"]
