@@ -1,0 +1,189 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "The SA binding is removed but the group binding still lets the stolen token read the rotated Secret."
+  ],
+  "bounds": {},
+  "case_id": "group-subject-0-sa-binding-only",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "id": "ci-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-ops-ci",
+      "username": "system:serviceaccount:ops:ci"
+    }
+  ],
+  "initial_facts": [
+    {
+      "args": [
+        "ci-token"
+      ],
+      "evidence": [],
+      "kind": "possesses_credential",
+      "status": "assumed"
+    },
+    {
+      "args": [
+        "ops",
+        "shared-token",
+        "1"
+      ],
+      "evidence": [],
+      "kind": "knows_secret",
+      "status": "observed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "ci-token",
+        "namespace": "ops",
+        "role_kind": "Role",
+        "role_name": "token-reader",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "ci",
+            "namespace": "ops"
+          }
+        ]
+      },
+      {
+        "name": "all-sas-token",
+        "namespace": "ops",
+        "role_kind": "Role",
+        "role_name": "token-reader",
+        "subjects": [
+          {
+            "kind": "Group",
+            "name": "system:serviceaccounts:ops"
+          }
+        ]
+      }
+    ],
+    "controllers": [],
+    "pods": [
+      {
+        "name": "ci-0",
+        "namespace": "ops",
+        "service_account": "ci",
+        "uid": "pod-ops-ci-0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "token-reader",
+        "namespace": "ops",
+        "rules": [
+          {
+            "resource_names": [
+              "shared-token"
+            ],
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "shared-token",
+        "namespace": "ops",
+        "uid": "sec-ops-st",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "ci",
+        "namespace": "ops",
+        "uid": "sa-ops-ci"
+      },
+      {
+        "name": "svc0",
+        "namespace": "ops",
+        "uid": "sa-ops-svc0"
+      }
+    ],
+    "services": [
+      {
+        "accepted_version": 1,
+        "name": "downstream-0",
+        "source_namespace": "ops",
+        "source_secret": "shared-token"
+      },
+      {
+        "accepted_version": 1,
+        "name": "downstream-1",
+        "source_namespace": "ops",
+        "source_secret": "shared-token"
+      },
+      {
+        "accepted_version": 1,
+        "name": "downstream-2",
+        "source_namespace": "ops",
+        "source_secret": "shared-token"
+      }
+    ]
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-ops-shared-token",
+      "kind": "no_secret_read",
+      "namespace": "ops",
+      "secret": "shared-token"
+    },
+    {
+      "id": "protect-downstream-0",
+      "kind": "no_downstream_use",
+      "service": "downstream-0"
+    },
+    {
+      "id": "protect-downstream-1",
+      "kind": "no_downstream_use",
+      "service": "downstream-1"
+    },
+    {
+      "id": "protect-downstream-2",
+      "kind": "no_downstream_use",
+      "service": "downstream-2"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "remove_binding",
+      "name": "ci-token",
+      "namespace": "ops"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "downstream-0"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "downstream-1"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "downstream-2"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
