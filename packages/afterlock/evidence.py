@@ -515,6 +515,15 @@ def project(bundle: ReplayBundle) -> tuple[dict[str, Any], dict[str, Any]]:
                 version = sec["version"]
                 note = "version not in audit record; assumed equal to inventory version"
             add_fact("knows_secret", (ns, key[1], str(version)), "observed", ref, note)
+        elif verb in ("list", "watch") and resource == "secrets":
+            # A list/watch response carries the data of every matching Secret (S-SEC-1).
+            # Audit metadata does not say which versions were returned, so each Secret in
+            # scope is known at its inventory version.
+            name = target.get("name")
+            for (sns, sname), sec in sorted(secrets.items()):
+                if (not isinstance(ns, str) or sns == ns) and (not isinstance(name, str) or sname == name) and isinstance(sec.get("version"), int):
+                    add_fact("knows_secret", (sns, sname, str(sec["version"])), "observed", ref,
+                             f"{verb} response; version assumed equal to inventory version")
 
     staleness = case.get("max_evidence_staleness_seconds")
     if isinstance(staleness, int):
