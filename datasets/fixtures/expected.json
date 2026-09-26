@@ -1,0 +1,19 @@
+{
+  "_comment": "Expected outcomes written from the scenario descriptions (docs/research/scenarios.md), independent of engine output. Do not regenerate from engine results; a disagreement is a finding to investigate.",
+  "residual-token": {"conclusion": "residual_path", "objectives": {"protect-secret": "violated", "protect-canary": "violated"}, "legitimate": {"release-read": true, "release-canary": true}},
+  "targeted-containment": {"conclusion": "contained_within_scope", "objectives": {"protect-secret": "satisfied_within_scope", "protect-canary": "satisfied_within_scope"}, "legitimate": {"release-read": true, "release-canary": true}},
+  "defender-race": {"conclusion": "residual_path", "objectives": {"protect-secret": "violated", "protect-canary": "violated"}},
+  "copied-downstream": {"conclusion": "residual_path", "objectives": {"protect-secret": "satisfied_within_scope", "protect-canary": "violated"}},
+  "alternative-binding": {"conclusion": "residual_path", "objectives": {"protect-secret": "violated", "protect-canary": "violated"}},
+  "controller-replacement": {"conclusion": "residual_path", "objectives": {"protect-secret": "violated", "protect-canary": "violated"}},
+  "controller-contained": {"conclusion": "contained_within_scope", "objectives": {"protect-secret": "satisfied_within_scope", "protect-canary": "satisfied_within_scope"}, "legitimate": {"release-read": true, "release-canary": true}},
+  "admission-denied": {"conclusion": "contained_within_scope", "objectives": {"protect-secret": "satisfied_within_scope", "protect-canary": "satisfied_within_scope"}},
+  "admission-unsupported": {"conclusion": "unknown", "objectives": {"protect-secret": "unknown", "protect-canary": "unknown"}},
+  "no-admission-control": {"conclusion": "residual_path", "objectives": {"protect-secret": "violated", "protect-canary": "violated"}},
+  "token-expiry-active": {"conclusion": "residual_path", "objectives": {"protect-secret": "violated"}},
+  "token-expiry-wait": {"conclusion": "contained_within_scope", "objectives": {"protect-secret": "satisfied_within_scope"}},
+  "audience-mismatch": {"conclusion": "contained_within_scope", "objectives": {"protect-secret": "satisfied_within_scope"}},
+  "same-name-recreation": {"conclusion": "contained_within_scope", "objectives": {"protect-secret": "satisfied_within_scope"}},
+  "incomplete-telemetry": {"conclusion": "unknown", "objectives": {"protect-secret": "unknown", "protect-canary": "unknown"}},
+  "possible-read": {"conclusion": "residual_path", "objectives": {"protect-secret": "satisfied_within_scope", "protect-canary": "possibly_violated"}}
+}
