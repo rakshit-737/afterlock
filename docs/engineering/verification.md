@@ -124,6 +124,16 @@ creates from earlier runs), restart detection from spool existence.
   ruff pass, mypy pass (15 files), full pytest 358 passed, 20 skipped (BLOCKED), 1 failed
   (`test_symlinked_file_rejected`: Windows symlink privilege, host limitation).
 
+## Release candidate (2026-09-26)
+
+After the R1 (possible-history expiry at use time) and R6 (API image from `uv.lock`) fixes:
+CI run [36259016014](https://github.com/rakshit-737/afterlock/actions/runs/36259016014) all six
+jobs pass, including the `containers` check that the image's installed packages equal the
+`uv.lock` export. Live lab run [36259040198](https://github.com/rakshit-737/afterlock/actions/runs/36259040198):
+spike 3 x 17 steps all agree (`spike-summary-20260926T172813Z.json`); collector `lab_confirmed`,
+28/28 (`collect-20260926T173423Z.json`). Docs site built with `mkdocs build --strict` and
+deployed (run 36258112577).
+
 ## Not executed (these are not passes)
 
 | Check | Why | How to run |
