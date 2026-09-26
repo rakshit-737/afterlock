@@ -29,7 +29,15 @@ has it ingest the API server audit log and write an afterlock.replay/1 bundle. T
 supervisor validates, projects and analyses that bundle, compares the conclusion with
 the hand-authored residual-token case, and scans every produced file for the
 credential values it holds in memory; the bundle is kept (labs/collected/) only if
-that scan is clean.
+that scan is clean. A second collector session (fresh spool, started while the
+attacker Pod exists) runs until after the containment steps (binding removed, Pod
+deleted, credential rotated); its bundle is compared with the targeted-containment
+case on the Kubernetes objective (protect-secret). Downstream rotation is not a
+Kubernetes object the collector observes and is reported as a coverage limitation.
+
+S-SEC-5: the rotation step measures the propagation delay, parameterises the model
+with d = ceil(acknowledgement time) and checks the old value right after rotation
+(predicted violated) and after waiting past d (predicted satisfied_within_scope).
 
 Every observation is compared with the engine's prediction for the matching
 replay case and written to labs/receipts/. Tokens and credential values stay in
@@ -65,6 +73,8 @@ CONTEXT = f"kind-{CLUSTER}"
 NS = "demo"
 POLL_SECONDS = 120
 ROTATION_POLL_SECONDS = 180  # mounted Secret volumes refresh on the kubelet sync period
+ROTATION_ATTEMPTS = 3  # retries only when the old-value acceptance window closed before the first probe
+ROTATION_MARGIN_SECONDS = 2  # the late S-SEC-5 probe runs at least d + margin after the rotation
 CANARY_URL = "http://canary.canary.svc:8080/use"
 OUTSIDER_URL = "http://outsider.outsider.svc:8080/"
 # Calico (policy-enforcing CNI). The digest was computed from this exact URL on
@@ -76,7 +86,16 @@ sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import collected  # noqa: E402
-from receipts import agrees, check_receipt, network_policies, summarise, validation  # noqa: E402
+from receipts import (  # noqa: E402
+    agrees,
+    check_receipt,
+    network_policies,
+    propagation_seconds,
+    rotation_window,
+    summarise,
+    validation,
+    with_rotation_propagation,
+)
 
 # Audit logging (labs/kind/cluster.yaml). The policy is staged here before the
 # cluster is created; the API server writes its log into AUDIT_HOST_DIR through
@@ -271,6 +290,42 @@ def predict_legit(case: str, op: str) -> str:
     return "preserved" if {o["id"]: o["preserved"] for o in b["legitimate_operations"]}[op] else "broken"
 
 
+def predict_propagation(delay: int, wait: int | None) -> str:
+    """protect-canary for targeted-containment with rotation_propagation_seconds=delay (S-SEC-5),
+    optionally followed by a wait step."""
+    from afterlock.evidence import ReplayBundle, project
+    from afterlock.model import parse_analysis_input
+    from afterlock.results import analyze
+
+    base = project(ReplayBundle.load(ROOT / "datasets" / "replay" / "targeted-containment"))[0]
+    doc = with_rotation_propagation(base, service="canary-service", delay_seconds=delay, wait_seconds=wait)
+    return {o["id"]: o["status"] for o in analyze(parse_analysis_input(doc))["objectives"]}["protect-canary"]
+
+
+def measure_rotation(old: str) -> dict[str, Any]:
+    """Rotate to a fresh value; probe the old value immediately, then poll new and old.
+
+    Returns timings relative to the moment the rotation was written (t0, monotonic), the
+    old-value window summary, and the new value (memory only; callers must not persist it).
+    """
+    new = "synthetic-" + secrets.token_hex(12)
+    set_credential(new)
+    t0 = time.monotonic()
+    first = canary_use(old)
+    probes = [(round(time.monotonic() - t0, 2), first)]
+    ack = None
+    new_status = old_status = 0
+    while time.monotonic() - t0 < ROTATION_POLL_SECONDS:
+        new_status, old_status = canary_use(new), canary_use(old)
+        probes.append((round(time.monotonic() - t0, 2), old_status))
+        if new_status == 200 and old_status == 401:
+            ack = probes[-1][0]
+            break
+        time.sleep(2)
+    return {"value": new, "t0": t0, "new_status": new_status, "old_status": old_status,
+            "acknowledged_seconds": ack, "window": rotation_window(probes)}
+
+
 def install_cni() -> None:
     """Install Calico from a pinned manifest whose SHA-256 is verified before use.
 
@@ -371,6 +426,8 @@ class LiveCollector:
         self.phase = 0
         self.token = ""
         self.receipts: list[dict[str, Any]] = []
+        self.webhook_token = ""
+        self.webhook_port = 0
         # Start of the evidence window (RFC3339, whole seconds, floored so it is inclusive).
         # The API server audit log covers the cluster's lifetime, including earlier spike
         # runs that created and deleted Pods with the same names; those are not this case.
@@ -417,16 +474,16 @@ class LiveCollector:
         with os.fdopen(fd, "w") as fh:
             json.dump(kubeconfig, fh)
 
-    def _args(self, out: Path, *extra: str) -> list[str]:
+    def _args(self, out: Path, *extra: str, spool: Path | None = None, case_id: str = "residual-token-live") -> list[str]:
         return [str(self.bin), "--kubeconfig", str(self.secret_dir / "kubeconfig"), "--cluster-id", CLUSTER,
-                "--source-id", COLLECTOR_SOURCE_ID, "--case-id", "residual-token-live", "--spool", str(self.spool),
+                "--source-id", COLLECTOR_SOURCE_ID, "--case-id", case_id, "--spool", str(spool or self.spool),
                 "--secret-metadata", "--secret-namespaces", NS, "--audit-since", self.since,
                 "--out", str(out), *extra]
 
-    def _spawn(self) -> None:
+    def _spawn(self, args: list[str] | None = None) -> None:
         self.phase += 1
         log = open(self.work / f"collector-{self.phase}.log", "wb")  # noqa: SIM115 - owned by the process
-        self.proc = subprocess.Popen(self._args(self.work / f"partial-{self.phase}"), stdout=log, stderr=log)
+        self.proc = subprocess.Popen(args or self._args(self.work / f"partial-{self.phase}"), stdout=log, stderr=log)
         time.sleep(5)  # initial list; the process must still be running afterwards
         if self.proc.poll() is not None:
             raise LabError(f"collector exited early (phase {self.phase}); see its log in {self.work}")
@@ -525,11 +582,140 @@ class LiveCollector:
             out[-1]["bundle"] = dest.relative_to(ROOT).as_posix()
         return out
 
+    # ------------------------------------------------ second window (targeted containment)
+    #
+    # The audit log carries no Pod UIDs; the collector correlates a Pod creation with a
+    # UID only from Pods it observed itself. After containment the attacker Pod is gone,
+    # so the second window's collector (process D, fresh spool, no injected restart) is
+    # started while that Pod still exists and runs until the containment steps are done.
+    # It cannot re-read the audit log later, so at the checkpoint the supervisor relays
+    # the API server audit log to D's loopback webhook receiver (the same EventList
+    # format the API server's webhook backend sends), then stops D, which writes the bundle.
+
+    def start_contained(self, template: dict[str, Any]) -> None:
+        import socket
+
+        ci_sa = json.loads(kubectl("get", "serviceaccount", "ci-runner", "-n", NS, "-o", "json"))["metadata"]["uid"]
+        release_uid = json.loads(kubectl("get", "pod", "release-app", "-n", NS, "-o", "json"))["metadata"]["uid"]
+        # The collector reads the case at start, so analysis_time is the start of this
+        # session; the bundle's heartbeat is later (not stale).
+        case = collected.lab_case(template, ci_username=f"system:serviceaccount:{NS}:ci-runner", ci_sa_uid=ci_sa,
+                                  release_pod_uid=release_uid, analysis_time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                                  source_id=COLLECTOR_SOURCE_ID, scenario="targeted-containment")
+        (self.work / "case-contained.json").write_text(json.dumps(case, indent=2) + "\n")
+        self.webhook_token = secrets.token_hex(24)
+        fd = os.open(self.secret_dir / "webhook-token", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as fh:
+            fh.write(self.webhook_token)
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            self.webhook_port = s.getsockname()[1]
+        self._spawn(self._args(self.work / "bundle-contained", "--case", str(self.work / "case-contained.json"),
+                               "--webhook-listen", f"127.0.0.1:{self.webhook_port}", "--insecure-http-loopback",
+                               "--webhook-token-file", str(self.secret_dir / "webhook-token"),
+                               spool=self.work / "spool-contained.jsonl", case_id="targeted-containment-live"))
+        # The receiver starts only after the initial inventory lists (or the sync timeout,
+        # which the collector records as an inventory-unsynced gap).
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 120:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{self.webhook_port}/healthz", timeout=5) as resp:
+                    if resp.status == 200:
+                        return
+            except (urllib.error.URLError, OSError):
+                pass
+            if self.proc is not None and self.proc.poll() is not None:
+                break
+            time.sleep(1)
+        raise LabError("second-window collector did not become ready")
+
+    def _relay_audit(self) -> dict[str, Any]:
+        bodies, malformed = collected.audit_batches(read_audit_log())
+        statuses = []
+        for body in bodies:
+            req = urllib.request.Request(f"http://127.0.0.1:{self.webhook_port}/v1/audit", data=body, method="POST",
+                                         headers={"Authorization": f"Bearer {self.webhook_token}", "Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    statuses.append(int(resp.status))
+            except urllib.error.HTTPError as err:
+                statuses.append(int(err.code))
+        return {"batches": len(bodies), "batch_statuses": sorted(set(statuses)), "malformed_lines_not_sent": malformed,
+                "ok": bool(bodies) and malformed == 0 and all(s == 200 for s in statuses)}
+
+    def finish_contained(self, held: dict[str, str], attacker_uid: str) -> list[dict[str, Any]]:
+        from afterlock.evidence import ReplayBundle, project
+        from afterlock.model import parse_analysis_input
+        from afterlock.results import analyze
+
+        assert self.proc is not None
+        time.sleep(2)  # let the API server flush the audit log
+        relay = self._relay_audit()
+        self.proc.terminate()
+        code = self.proc.wait(timeout=120)
+        bundle_dir = self.work / "bundle-contained"
+        written = code == 0 and relay["ok"] and (bundle_dir / "manifest.json").is_file()
+        out: list[dict[str, Any]] = [check_receipt("collector-writes-contained-bundle", written, "written", exit_code=code,
+                                                   audit_transport="supervisor relay of the API server audit log to the "
+                                                                   "collector's loopback webhook receiver", relay=relay)]
+        if not written:
+            return out
+        try:
+            bundle = ReplayBundle.load(bundle_dir)
+            analysis_input, diag = project(bundle)
+            raw = analyze(parse_analysis_input(analysis_input))
+            valid = not diag["rejected"] and not diag["conflicts"]
+        except Exception as exc:  # noqa: BLE001 - recorded as a failed check
+            out.append(check_receipt("contained-bundle-validates", False, "valid", error=type(exc).__name__, **safe_error_detail(exc)))
+            return out
+        out.append(check_receipt("contained-bundle-validates", valid, "valid", schema=bundle.manifest.get("schema"),
+                                 accepted_events=diag["accepted"], rejected=len(diag["rejected"]), conflicts=len(diag["conflicts"])))
+
+        events = collected.read_events(bundle.event_lines)
+        release_uid = json.loads(kubectl("get", "pod", "release-app", "-n", NS, "-o", "json"))["metadata"]["uid"]
+        checks = collected.containment_checks(bundle.inventory, events, namespace=NS, attacker_pod="diagnostic-job",
+                                              attacker_pod_uid=attacker_uid, attacker_sa="release-reader",
+                                              creator=f"system:serviceaccount:{NS}:ci-runner", binding="ci-pod-creator",
+                                              secret="release-credential", keep_uids=[release_uid])
+        out.append(check_receipt("contained-inventory-shows-attack-and-containment", all(checks.values()), "present", checks=checks))
+
+        template = json.loads((ROOT / "datasets" / "replay" / "targeted-containment" / "case.json").read_text())
+        reference = analyze(parse_analysis_input(project(ReplayBundle.load(ROOT / "datasets" / "replay" / "targeted-containment"))[0]))
+        plan = collected.plan_gap_resolution(raw["missing_coverage"], collected.gap_index(events))
+        resolved_dir = self.work / "bundle-contained-gaps-resolved"
+        ReplayBundle.write(resolved_dir, case_id=str(bundle.manifest.get("case_id")), cluster_id=str(bundle.manifest.get("cluster_id")),
+                           inventory=bundle.inventory, case=collected.resolve_gaps(bundle.case, plan["resolved"]), events=events)
+        resolved = analyze(parse_analysis_input(project(ReplayBundle.load(resolved_dir))[0]))
+        cmp = collected.compare_containment(raw, resolved, reference, plan)
+        out.append(check_receipt("collected-conclusion-matches-targeted-containment", cmp["match"], reference["conclusion"]["model"],
+                                 reference_case="targeted-containment", comparison=cmp,
+                                 coverage_limitations={k: "downstream service state is not a Kubernetes object the collector "
+                                                          "observes; not analysed from collected evidence (checked by canary probes)"
+                                                       for k in collected.downstream_items(template)},
+                                 gap_kinds=collected.gap_kinds(events)))
+
+        (self.work / "analysis-result-contained.json").write_text(json.dumps(raw, indent=2) + "\n")
+        (self.work / "analysis-result-contained-gaps-resolved.json").write_text(json.dumps(resolved, indent=2) + "\n")
+        findings = collected.scan_for_leaks(self.work, {**held, "collector-token": self.token, "webhook-token": self.webhook_token})
+        clean = not findings
+        out.append(check_receipt("contained-bundle-has-no-credential-material", clean, "no_leak", findings=findings,
+                                 scanned_files=sorted(p.relative_to(self.work).as_posix() for p in self.work.rglob("*") if p.is_file())))
+        if clean:
+            dest = COLLECTED / f"targeted-containment-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+            dest.mkdir(parents=True)
+            for p in sorted(bundle_dir.iterdir()):
+                shutil.copyfile(p, dest / p.name)
+            shutil.copyfile(self.work / "analysis-result-contained.json", dest / "analysis-result.json")
+            shutil.copyfile(self.work / "analysis-result-contained-gaps-resolved.json", dest / "analysis-result-gaps-resolved.json")
+            out[-1]["bundle"] = dest.relative_to(ROOT).as_posix()
+        return out
+
     def close(self) -> None:
         if self.proc is not None and self.proc.poll() is None:
             self.proc.kill()
             self.proc.wait(timeout=30)
         self.token = ""
+        self.webhook_token = ""
         shutil.rmtree(self.secret_dir, ignore_errors=True)
         shutil.rmtree(self.work, ignore_errors=True)
 
@@ -607,6 +793,7 @@ def cmd_reset(_args: list[str]) -> None:
 def run_spike(ident: dict[str, Any], collector: LiveCollector | None = None) -> list[dict[str, Any]]:
     api = Api(ident)
     receipts: list[dict[str, Any]] = []
+    held: dict[str, str] = {}  # credential values for the collector leak scans (memory only)
     secret_path = f"/api/v1/namespaces/{NS}/secrets/release-credential"
     pods_path = f"/api/v1/namespaces/{NS}/pods"
 
@@ -661,7 +848,11 @@ def run_spike(ident: dict[str, Any], collector: LiveCollector | None = None) -> 
         # Checkpoint: the state now matches the residual-token case (binding removed,
         # attacker Pod and its token alive). Collection ends here.
         template = json.loads((ROOT / "datasets" / "replay" / "residual-token" / "case.json").read_text())
-        receipts.extend(collector.finish(template, {"ci-token": ci, "stolen-token": stolen, "copied-credential": copied}))
+        held.update({"ci-token": ci, "stolen-token": stolen, "copied-credential": copied})
+        receipts.extend(collector.finish(template, dict(held)))
+        # Second window: starts while the attacker Pod still exists (UID correlation) and
+        # ends after binding removal, Pod deletion and rotation (targeted containment).
+        collector.start_contained(json.loads((ROOT / "datasets" / "replay" / "targeted-containment" / "case.json").read_text()))
 
     uid = json.loads(kubectl("get", "pod", "diagnostic-job", "-n", NS, "-o", "json"))["metadata"]["uid"]
     kubectl("delete", "pod", "diagnostic-job", "-n", NS, "--wait=true")
@@ -677,30 +868,67 @@ def run_spike(ident: dict[str, Any], collector: LiveCollector | None = None) -> 
     record("copied-credential-survives-kubernetes-containment", observed=canary_use(copied), expect="answer_ok",
            **predicted("copied-downstream", "protect-canary"))
 
-    rotated = "synthetic-" + secrets.token_hex(12)
-    set_credential(rotated)
-    t0 = time.monotonic()
-    status = old_status = 0
-    while time.monotonic() - t0 < ROTATION_POLL_SECONDS:
-        status, old_status = canary_use(rotated), canary_use(copied)
-        if status == 200 and old_status == 401:
+    # Rotation (S-SEC-4/5). The old value is probed right after the rotation is written,
+    # then new and old are polled until the canary accepts the new value and refuses the
+    # old one. That acknowledgement time is the measured propagation delay (the kubelet
+    # mounted-Secret refresh); it is recorded, never hidden. If the very first probe
+    # already sees the old value refused, the acceptance window was not observed; the
+    # rotation is repeated (old = the value accepted before it), at most
+    # ROTATION_ATTEMPTS times, and every attempt is recorded.
+    attempts: list[dict[str, Any]] = []
+    old = copied
+    for attempt in range(1, ROTATION_ATTEMPTS + 1):
+        m = measure_rotation(old)
+        attempts.append({k: v for k, v in m.items() if k not in ("value", "t0")} | {"attempt": attempt})
+        if collector is not None:
+            held[f"rotated-credential-{attempt}"] = m["value"]
+        if m["window"]["window_observed"] or attempt == ROTATION_ATTEMPTS:
             break
-        time.sleep(2)
-    # The elapsed time is the kubelet mounted-Secret refresh delay; it is recorded, never hidden.
-    record("rotation-acknowledged-by-canary", "acknowledged", status, "answer_ok",
-           elapsed_seconds=round(time.monotonic() - t0, 2))
-    del rotated
-    record("copied-credential-rejected-after-rotation", observed=old_status, expect="answer_denied",
+        old = m["value"]
+    record("rotation-acknowledged-by-canary", "acknowledged", m["new_status"], "answer_ok",
+           elapsed_seconds=m["acknowledged_seconds"], attempts=attempts)
+    record("copied-credential-rejected-after-rotation", observed=canary_use(copied), expect="answer_denied",
            **predicted("targeted-containment", "protect-canary"))
-    del copied
+
+    # S-SEC-5 receipt. d is the measured acknowledgement time rounded up; the prediction
+    # is parameterised with the value measured in this run (not an independent check of d).
+    ack = m["acknowledged_seconds"]
+    if ack is None:  # not acknowledged in time: no d was measured, so no S-SEC-5 step can be checked
+        receipts.append(check_receipt("s-sec-5-propagation-measured", False, "measured", window=m["window"]))
+        ack = float(ROTATION_POLL_SECONDS)
+    d = propagation_seconds(ack)
+    s5 = {"rotation_propagation_seconds": d, "acknowledged_seconds": ack, "window": m["window"],
+          "parameter_source": "measured in this run: ceil(acknowledgement time)",
+          "analysis_input": "targeted-containment with canary-service rotation_propagation_seconds=d",
+          "old_credential": "copied" if old is copied else "value accepted before this rotation",
+          "objective": "protect-canary"}
+    record("s-sec-5-old-credential-accepted-right-after-rotation", predict_propagation(d, None),
+           m["window"]["first_probe_status"], "answer_ok",
+           elapsed_seconds_since_rotation=m["window"]["first_probe_seconds"], **s5)
+    remaining = d + ROTATION_MARGIN_SECONDS - (time.monotonic() - m["t0"])
+    if remaining > 0:
+        time.sleep(remaining)
+    late = canary_use(old)
+    record("s-sec-5-old-credential-rejected-after-propagation-wait", predict_propagation(d, d), late, "answer_denied",
+           elapsed_seconds_since_rotation=round(time.monotonic() - m["t0"], 2), wait_seconds=d, **s5)
+    del old, m
 
     legit = kubectl("create", "token", "release-reader", "-n", NS, "--duration=10m").strip()
     status, current = api.read_secret_value(legit, secret_path)
+    if collector is not None:
+        held["legit-token"] = legit
     del legit
     record("legitimate-workload-uses-rotated-credential", predict_legit("targeted-containment", "release-canary"),
            canary_use(current) if status == 200 and current is not None else status, "answer_ok",
            case="targeted-containment", objective="legitimate:release-canary")
     del current
+
+    if collector is not None:
+        # Checkpoint 2: binding removed, attacker Pod deleted, credential rotated, binding
+        # not yet restored (the negative control below re-creates it).
+        receipts.extend(collector.finish_contained(held, uid))
+        held.clear()
+    del copied
 
     kubectl("create", "rolebinding", "ci-pod-creator", "-n", NS, "--role=pod-creator", f"--serviceaccount={NS}:ci-runner")
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "admission-restrict.yaml"))
