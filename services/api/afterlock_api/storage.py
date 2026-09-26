@@ -12,6 +12,12 @@ Database concerns stay here: the domain packages (``packages/afterlock``) never 
 
 Scoping: every read takes a ``Scope`` (``None`` = all clusters, else the caller's cluster set)
 and every worker write names both ``job_id`` and ``cluster_id``. All SQL is parameterized.
+Case ids are unique per cluster (migration 0003), so a duplicate id in another cluster is not
+an observable conflict. A lookup that matches the same id in several visible clusters raises
+``AmbiguousCase`` unless the caller names the cluster.
+
+Bounds: ``MemoryStorage`` refuses new cases, results, and jobs beyond configurable caps
+(``StorageFull``) so one process cannot be grown without limit.
 
 Job state machine::
 
@@ -46,7 +52,18 @@ HeartbeatStatus = Literal["ok", "cancel", "lost"]
 JOB_KINDS = ("analysis", "plan", "verification")
 TERMINAL = ("succeeded", "failed", "cancelled")
 RESULT_PREFIX = {"analysis": "an", "plan": "pl", "verification": "vf"}
-SCHEMA_VERSION = 2  # highest migration this code requires
+SCHEMA_VERSION = 3  # highest migration this code requires
+DEFAULT_MAX_CASES = 1_000
+DEFAULT_MAX_RESULTS = 10_000
+DEFAULT_MAX_JOBS = 10_000
+
+
+class StorageFull(Exception):
+    """A bounded backend refused a new record (in-memory caps)."""
+
+
+class AmbiguousCase(Exception):
+    """The case id exists in several clusters visible to the caller; name the cluster."""
 
 
 def canonical(obj: Any) -> bytes:
@@ -101,8 +118,9 @@ class Storage(Protocol):
     kind: str
 
     def create_case(self, case: dict[str, Any]) -> bool: ...
-    def get_case(self, case_id: str, scope: Scope) -> dict[str, Any] | None: ...
+    def get_case(self, case_id: str, scope: Scope, cluster_id: str | None = None) -> dict[str, Any] | None: ...
     def list_case_ids(self, scope: Scope) -> list[str]: ...
+    def list_cases(self, scope: Scope) -> list[dict[str, str]]: ...
     def record_analysis(self, manifest: dict[str, Any], result: dict[str, Any]) -> str: ...
     def get_analysis(self, result_id: str, scope: Scope) -> dict[str, Any] | None: ...
     def enqueue(self, manifest: dict[str, Any], created_by: str, max_attempts: int = 3) -> dict[str, Any]: ...
@@ -120,6 +138,12 @@ def _visible(scope: Scope, cluster_id: str) -> bool:
     return scope is None or cluster_id in scope
 
 
+def _pick_case(matches: list[dict[str, Any]], case_id: str) -> dict[str, Any] | None:
+    if len(matches) > 1:
+        raise AmbiguousCase(f"case {case_id!r} exists in several of your clusters; pass cluster_id")
+    return matches[0] if matches else None
+
+
 def _public_job(j: dict[str, Any], result_id: str | None, result: Any) -> dict[str, Any]:
     out = {k: j[k] for k in ("job_id", "cluster_id", "manifest_id", "kind", "state", "attempts", "max_attempts", "cancel_requested", "last_error")}
     out["result_id"] = result_id
@@ -133,10 +157,20 @@ class MemoryStorage:
 
     kind = "in-memory"
 
-    def __init__(self, clock: Callable[[], float] = time.time) -> None:
+    def __init__(
+        self,
+        clock: Callable[[], float] = time.time,
+        *,
+        max_cases: int = DEFAULT_MAX_CASES,
+        max_results: int = DEFAULT_MAX_RESULTS,
+        max_jobs: int = DEFAULT_MAX_JOBS,
+    ) -> None:
+        if min(max_cases, max_results, max_jobs) < 1:
+            raise ValueError("in-memory storage caps must be >= 1")
         self.clock = clock
         self.lock = threading.RLock()
-        self.cases: dict[str, dict[str, Any]] = {}
+        self.max_cases, self.max_results, self.max_jobs = max_cases, max_results, max_jobs
+        self.cases: dict[tuple[str, str], dict[str, Any]] = {}  # (cluster_id, case_id) -> case
         self.manifests: dict[str, dict[str, Any]] = {}
         self.jobs: dict[str, dict[str, Any]] = {}
         self.results: dict[str, dict[str, Any]] = {}
@@ -144,31 +178,42 @@ class MemoryStorage:
 
     # cases -----------------------------------------------------------------
     def create_case(self, case: dict[str, Any]) -> bool:
+        key = (case["cluster_id"], case["case_id"])
         with self.lock:
-            if case["case_id"] in self.cases:
+            if key in self.cases:
                 return False
+            if len(self.cases) >= self.max_cases:
+                raise StorageFull(f"in-memory case limit ({self.max_cases}) reached")
             rec = copy.deepcopy(case)
             rec["content_hash"] = digest(rec["input"])
-            self.cases[case["case_id"]] = rec
+            self.cases[key] = rec
             return True
 
-    def get_case(self, case_id: str, scope: Scope) -> dict[str, Any] | None:
-        c = self.cases.get(case_id)
-        return copy.deepcopy(c) if c is not None and _visible(scope, c["cluster_id"]) else None
+    def get_case(self, case_id: str, scope: Scope, cluster_id: str | None = None) -> dict[str, Any] | None:
+        with self.lock:
+            matches = [c for (cl, cid), c in self.cases.items()
+                       if cid == case_id and _visible(scope, cl) and (cluster_id is None or cl == cluster_id)]
+            c = _pick_case(matches, case_id)
+            return copy.deepcopy(c) if c is not None else None
+
+    def list_cases(self, scope: Scope) -> list[dict[str, str]]:
+        with self.lock:
+            keys = sorted((cid, cl) for (cl, cid) in self.cases if _visible(scope, cl))
+        return [{"case_id": cid, "cluster_id": cl} for cid, cl in keys]
 
     def list_case_ids(self, scope: Scope) -> list[str]:
-        with self.lock:
-            return sorted(c["case_id"] for c in self.cases.values() if _visible(scope, c["cluster_id"]))
+        return [c["case_id"] for c in self.list_cases(scope)]
 
     # manifests and results ------------------------------------------------------
     def _put_manifest(self, m: dict[str, Any]) -> None:
-        c = self.cases.get(m["case_id"])
-        if c is None or c["cluster_id"] != m["cluster_id"]:
+        if (m["cluster_id"], m["case_id"]) not in self.cases:
             raise KeyError("manifest references an unknown case")
         self.manifests.setdefault(m["manifest_id"], copy.deepcopy(m))
 
     def record_analysis(self, manifest: dict[str, Any], result: dict[str, Any]) -> str:
         with self.lock:
+            if len(self.results) >= self.max_results:
+                raise StorageFull(f"in-memory result limit ({self.max_results}) reached")
             self._put_manifest(manifest)
             rid = new_id(RESULT_PREFIX[manifest["kind"]])
             self.results[rid] = {"result_id": rid, "cluster_id": manifest["cluster_id"], "case_id": manifest["case_id"],
@@ -189,6 +234,8 @@ class MemoryStorage:
         if not 1 <= max_attempts <= 10:
             raise ValueError("max_attempts must be in 1..10")
         with self.lock:
+            if len(self.jobs) >= self.max_jobs:
+                raise StorageFull(f"in-memory job limit ({self.max_jobs}) reached")
             self._put_manifest(manifest)
             jid = new_id("job")
             self.jobs[jid] = {"job_id": jid, "cluster_id": manifest["cluster_id"], "manifest_id": manifest["manifest_id"],
@@ -273,7 +320,11 @@ class MemoryStorage:
             if j is None or j["cancel_requested"] or j["job_id"] in self.result_by_job:
                 return None
             m = self.manifests.get(j["manifest_id"])
-            if m is None or m["case_id"] not in self.cases:
+            if m is None or (m["cluster_id"], m["case_id"]) not in self.cases:
+                return None
+            if len(self.results) >= self.max_results:
+                # Refuse publication and fail the job visibly instead of growing without bound.
+                self._release(j, "failed", f"in-memory result limit ({self.max_results}) reached")
                 return None
             rid = new_id(RESULT_PREFIX[j["kind"]])
             self.results[rid] = {"result_id": rid, "cluster_id": j["cluster_id"], "case_id": m["case_id"], "manifest_id": m["manifest_id"],
@@ -343,26 +394,31 @@ class PostgresStorage:
         with self._connect() as conn:
             cur = conn.execute(
                 "INSERT INTO cases (case_id, cluster_id, content_hash, input, diagnostics) VALUES (%s, %s, %s, %s, %s)"
-                " ON CONFLICT (case_id) DO NOTHING",
+                " ON CONFLICT (cluster_id, case_id) DO NOTHING",
                 (case["case_id"], case["cluster_id"], digest(case["input"]), self._jsonb(case["input"]), self._jsonb(case["diagnostics"])),
             )
             return bool(cur.rowcount == 1)
 
-    def get_case(self, case_id: str, scope: Scope) -> dict[str, Any] | None:
+    def get_case(self, case_id: str, scope: Scope, cluster_id: str | None = None) -> dict[str, Any] | None:
         every, clusters = self._scope(scope)
         with self._connect() as conn:
-            row = conn.execute(
+            rows = conn.execute(
                 "SELECT case_id, cluster_id, content_hash, input, diagnostics FROM cases"
-                " WHERE case_id = %s AND (%s OR cluster_id = ANY(%s))",
-                (case_id, every, clusters),
-            ).fetchone()
-        return dict(row) if row else None
+                " WHERE case_id = %s AND (%s OR cluster_id = ANY(%s)) AND (%s::text IS NULL OR cluster_id = %s::text)"
+                " ORDER BY cluster_id LIMIT 2",
+                (case_id, every, clusters, cluster_id, cluster_id),
+            ).fetchall()
+        return _pick_case([dict(r) for r in rows], case_id)
+
+    def list_cases(self, scope: Scope) -> list[dict[str, str]]:
+        every, clusters = self._scope(scope)
+        with self._connect() as conn:
+            rows = conn.execute("SELECT case_id, cluster_id FROM cases WHERE (%s OR cluster_id = ANY(%s)) ORDER BY case_id, cluster_id",
+                                (every, clusters)).fetchall()
+        return [{"case_id": r["case_id"], "cluster_id": r["cluster_id"]} for r in rows]
 
     def list_case_ids(self, scope: Scope) -> list[str]:
-        every, clusters = self._scope(scope)
-        with self._connect() as conn:
-            rows = conn.execute("SELECT case_id FROM cases WHERE (%s OR cluster_id = ANY(%s)) ORDER BY case_id", (every, clusters)).fetchall()
-        return [r["case_id"] for r in rows]
+        return [c["case_id"] for c in self.list_cases(scope)]
 
     # manifests and results ------------------------------------------------------
     def _put_manifest(self, conn: Any, m: dict[str, Any]) -> None:
@@ -565,6 +621,21 @@ def scope_for(clusters: Collection[str]) -> Scope:
     return None if "*" in clusters else frozenset(clusters)
 
 
+def env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "")
+    if raw == "":
+        return default
+    if not raw.isdigit() or int(raw) < 1:
+        raise ValueError(f"{name} must be a positive integer")
+    return int(raw)
+
+
 def from_env() -> Storage:
     url = os.environ.get("AFTERLOCK_DATABASE_URL")
-    return PostgresStorage(url) if url else MemoryStorage()
+    if url:
+        return PostgresStorage(url)
+    return MemoryStorage(
+        max_cases=env_int("AFTERLOCK_MEMORY_MAX_CASES", DEFAULT_MAX_CASES),
+        max_results=env_int("AFTERLOCK_MEMORY_MAX_RESULTS", DEFAULT_MAX_RESULTS),
+        max_jobs=env_int("AFTERLOCK_MEMORY_MAX_JOBS", DEFAULT_MAX_JOBS),
+    )
