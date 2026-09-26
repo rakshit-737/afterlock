@@ -37,7 +37,7 @@ class CountingJWKS:
 
 def _token(kid: str) -> str:
     now = int(time.time())
-    c = {"iss": ISS, "aud": AUD, "sub": "alice", "iat": now, "exp": now + 300,
+    c = {"iss": ISS, "aud": AUD, "sub": "alice", "iat": 0, "exp": now + 300,  # iat=0: validator clock is fake
          "afterlock_role": "analyst", "afterlock_clusters": ["lab-local"]}
     return str(jwt.encode(c, KEY, algorithm="RS256", headers={"kid": kid}))
 
