@@ -38,6 +38,7 @@ from .model import (
     Pod,
 )
 from .semantics import (
+    SECRET_READ_VERBS,
     Env,
     admission_decision,
     apply_defender_action,
@@ -298,10 +299,16 @@ class _Run:
                         changed |= self._add(att, eph, d)
                 for key in sorted(env.secrets):
                     s = env.secrets[key]
-                    via = authorizing_bindings(env, user, "get", "secrets", s.namespace, s.name)
+                    # S-SEC-1: get, list and watch all return Secret data.
+                    via = []
+                    verb = "get"
+                    for verb in SECRET_READ_VERBS:
+                        via = authorizing_bindings(env, user, verb, "secrets", s.namespace, s.name)
+                        if via:
+                            break
                     if not via:
                         continue
-                    conds = (ucond, _authz(user, "get", "secrets", s.namespace, s.name, via),
+                    conds = (ucond, _authz(user, verb, "secrets", s.namespace, s.name, via),
                              {"check": "secret_version", "namespace": s.namespace, "name": s.name, "version": s.version})
                     changed |= self._add(att, eph, Derivation(("knows_secret", s.namespace, s.name, str(s.version)), "R-READ-SECRET", interval, (f,), conds, status))
                     changed |= self._add(att, eph, Derivation(("can_read_secret", s.namespace, s.name), "R-READ-SECRET", interval, (f,), conds, status))
