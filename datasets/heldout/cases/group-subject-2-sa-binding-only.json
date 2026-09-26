@@ -1,0 +1,194 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "The SA binding is removed but the group binding still lets the stolen token read the rotated Secret."
+  ],
+  "bounds": {},
+  "case_id": "group-subject-2-sa-binding-only",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "id": "ci-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-ingest-ci",
+      "username": "system:serviceaccount:ingest:ci"
+    }
+  ],
+  "initial_facts": [
+    {
+      "args": [
+        "ci-token"
+      ],
+      "evidence": [],
+      "kind": "possesses_credential",
+      "status": "assumed"
+    },
+    {
+      "args": [
+        "ingest",
+        "shared-token",
+        "1"
+      ],
+      "evidence": [],
+      "kind": "knows_secret",
+      "status": "observed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "ci-token",
+        "namespace": "ingest",
+        "role_kind": "Role",
+        "role_name": "token-reader",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "ci",
+            "namespace": "ingest"
+          }
+        ]
+      },
+      {
+        "name": "all-sas-token",
+        "namespace": "ingest",
+        "role_kind": "Role",
+        "role_name": "token-reader",
+        "subjects": [
+          {
+            "kind": "Group",
+            "name": "system:serviceaccounts:ingest"
+          }
+        ]
+      }
+    ],
+    "controllers": [],
+    "pods": [
+      {
+        "name": "ci-0",
+        "namespace": "ingest",
+        "service_account": "ci",
+        "uid": "pod-ingest-ci-0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "token-reader",
+        "namespace": "ingest",
+        "rules": [
+          {
+            "resource_names": [
+              "shared-token"
+            ],
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "shared-token",
+        "namespace": "ingest",
+        "uid": "sec-ingest-st",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "ci",
+        "namespace": "ingest",
+        "uid": "sa-ingest-ci"
+      },
+      {
+        "name": "svc0",
+        "namespace": "ingest",
+        "uid": "sa-ingest-svc0"
+      },
+      {
+        "name": "svc1",
+        "namespace": "ingest",
+        "uid": "sa-ingest-svc1"
+      }
+    ],
+    "services": [
+      {
+        "accepted_version": 1,
+        "name": "downstream-0",
+        "source_namespace": "ingest",
+        "source_secret": "shared-token"
+      },
+      {
+        "accepted_version": 1,
+        "name": "downstream-1",
+        "source_namespace": "ingest",
+        "source_secret": "shared-token"
+      },
+      {
+        "accepted_version": 1,
+        "name": "downstream-2",
+        "source_namespace": "ingest",
+        "source_secret": "shared-token"
+      }
+    ]
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-ingest-shared-token",
+      "kind": "no_secret_read",
+      "namespace": "ingest",
+      "secret": "shared-token"
+    },
+    {
+      "id": "protect-downstream-0",
+      "kind": "no_downstream_use",
+      "service": "downstream-0"
+    },
+    {
+      "id": "protect-downstream-1",
+      "kind": "no_downstream_use",
+      "service": "downstream-1"
+    },
+    {
+      "id": "protect-downstream-2",
+      "kind": "no_downstream_use",
+      "service": "downstream-2"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "remove_binding",
+      "name": "ci-token",
+      "namespace": "ingest"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "downstream-0"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "downstream-1"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "downstream-2"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
