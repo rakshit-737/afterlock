@@ -1,0 +1,95 @@
+site_name: AFTERLOCK
+site_description: >-
+  Research-grade containment verifier for Kubernetes workload identities.
+  A permission was revoked. Prove the access is gone.
+site_url: https://rakshit-737.github.io/afterlock/
+repo_url: https://github.com/rakshit-737/afterlock
+repo_name: rakshit-737/afterlock
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  # Pulls root-level files (CHANGELOG.md, SECURITY.md, ...) into pages without copying them.
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Concepts:
+      - Architecture: architecture/system.md
+      - Reference checker: architecture/reference-checker.md
+      - Scenarios: research/scenarios.md
+      - Prior art: research/prior-art.md
+      - Original design: research/original-design.md
+  - Semantics:
+      - Supported rules: semantics/supported.md
+  - Tutorials:
+      - Live lab: tutorials/live-lab.md
+  - Reference:
+      - CLI: cli/cli.md
+      - API: api/api.md
+      - Collector: collector/README.md
+      - Frontend: frontend/README.md
+      - Deployment and authentication: deployment/authentication.md
+  - Evidence:
+      - Verification record: engineering/verification.md
+      - Lab receipts: evidence/lab-receipts.md
+      - Benchmarks report: evidence/benchmarks.md
+      - Final audit: engineering/final-audit.md
+      - Research claims: research/claims.md
+  - Security:
+      - Threat model: threat_model/threat-model.md
+      - Security review 2026-09-26: security/review-2026-09-26.md
+      - Adversarial review (API): security/review-2026-09-26-adversarial-api.md
+      - Adversarial review (engine): security/review-2026-09-26-adversarial-engine.md
+      - Supply chain: security/supply-chain.md
+      - Security policy: security/policy.md
+  - Project:
+      - Status: engineering/status.md
+      - Changelog: project/changelog.md
+      - Contributing: project/contributing.md
+      - ADRs:
+          - Template: adr/0000-template.md
+          - 0001 Modular monolith: adr/0001-modular-monolith.md
+          - 0002 No AI in decisions: adr/0002-no-ai-in-decisions.md
+          - 0003 Independent reference checker: adr/0003-independent-reference-checker.md
+          - 0004 Monotone fixpoint and canonicalization: adr/0004-monotone-fixpoint-and-canonicalization.md
