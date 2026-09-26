@@ -1,0 +1,424 @@
+{
+  "lab": {
+    "server": "https://127.0.0.1:35597",
+    "ca_sha256": "c399c1da30c0641966861d738832e18456a10ac23fc0b5236ecdb8314395101c",
+    "kubernetes_version": "v1.31.4",
+    "lab_instance": "a9b29b251f5bc27d"
+  },
+  "run": {
+    "reset": {
+      "elapsed_seconds": 5.2,
+      "credential_seed_elapsed_seconds": 2.23
+    }
+  },
+  "validation": "lab_confirmed",
+  "receipts": [
+    {
+      "step": "ci-creates-release-reader-pod",
+      "model_prediction": "may_create",
+      "expect": "answer_ok",
+      "observed_http_status": 201,
+      "agrees": true
+    },
+    {
+      "step": "attacker-reads-secret",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "copied-credential-accepted-by-canary",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "residual-token",
+      "objective": "protect-canary"
+    },
+    {
+      "step": "isolation-control-canary-answers-demo",
+      "model_prediction": "reachable",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "probe_reason": "answered"
+    },
+    {
+      "step": "isolation-outsider-cannot-reach-canary",
+      "model_prediction": "unreachable",
+      "expect": "no_answer",
+      "observed_http_status": 0,
+      "agrees": true,
+      "probe_reason": "timeout"
+    },
+    {
+      "step": "isolation-control-outsider-answers-demo",
+      "model_prediction": "reachable",
+      "expect": "answer_denied",
+      "observed_http_status": 404,
+      "agrees": true,
+      "probe_reason": "answered"
+    },
+    {
+      "step": "isolation-attacker-egress-to-outsider-denied",
+      "model_prediction": "unreachable",
+      "expect": "no_answer",
+      "observed_http_status": 0,
+      "agrees": true,
+      "probe_reason": "timeout"
+    },
+    {
+      "step": "ci-creation-blocked-after-binding-removal",
+      "model_prediction": "blocked",
+      "expect": "answer_denied",
+      "observed_http_status": 403,
+      "agrees": true,
+      "elapsed_seconds": 0.0
+    },
+    {
+      "step": "residual-token-still-reads-secret",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "residual-token",
+      "objective": "protect-secret"
+    },
+    {
+      "step": "collector-writes-bundle",
+      "model_prediction": "written",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "restarted_phase_exit_code": 0,
+      "exit_code": 0
+    },
+    {
+      "step": "collected-bundle-validates",
+      "model_prediction": "valid",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "schema": "afterlock.replay/1",
+      "accepted_events": 89,
+      "rejected": 0,
+      "conflicts": 0
+    },
+    {
+      "step": "collected-inventory-shows-attack-and-containment",
+      "model_prediction": "present",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "checks": {
+        "pod-create-event-present": true,
+        "pod-create-correlated-to-live-uid": true,
+        "pod-create-service-account": true,
+        "attacker-pod-in-inventory": true,
+        "binding-delete-event-present": true,
+        "binding-absent-from-inventory": true
+      }
+    },
+    {
+      "step": "collected-conclusion-matches-residual-token",
+      "model_prediction": "residual_path",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "replay_case": "residual-token",
+      "comparison": {
+        "collected_conclusion": "residual_path",
+        "reference_conclusion": "residual_path",
+        "shared_objectives": [
+          "protect-secret"
+        ],
+        "mismatched_objectives": {},
+        "match": true
+      },
+      "coverage_gaps": 8
+    },
+    {
+      "step": "collector-restart-recorded-as-gap",
+      "model_prediction": "gap_recorded",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "gap_kinds": {
+        "collector-restart": 2,
+        "audit-before-window": 1,
+        "rbac-rule-unmodeled": 5
+      },
+      "collector_restarts_injected": 2
+    },
+    {
+      "step": "collected-bundle-has-no-credential-material",
+      "model_prediction": "no_leak",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "findings": [],
+      "scanned_files": [
+        "analysis-result.json",
+        "bundle/case.json",
+        "bundle/events.jsonl",
+        "bundle/inventory.json",
+        "bundle/manifest.json",
+        "case-template.json",
+        "collector-1.log",
+        "collector-2.log",
+        "partial-2/case.json",
+        "partial-2/events.jsonl",
+        "partial-2/inventory.json",
+        "partial-2/manifest.json",
+        "spool.jsonl"
+      ],
+      "bundle": "labs/collected/residual-token-20260926T132717Z"
+    },
+    {
+      "step": "bound-token-rejected-after-pod-deletion",
+      "model_prediction": "rejected",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "pod_uid": "24de2c79-68bb-4792-8d10-0df7a400d026",
+      "elapsed_seconds_after_deletion_complete": 0.01
+    },
+    {
+      "step": "copied-credential-survives-kubernetes-containment",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "copied-downstream",
+      "objective": "protect-canary"
+    },
+    {
+      "step": "rotation-acknowledged-by-canary",
+      "model_prediction": "acknowledged",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "elapsed_seconds": 2.58,
+      "attempts": [
+        {
+          "new_status": 200,
+          "old_status": 401,
+          "acknowledged_seconds": 2.58,
+          "window": {
+            "probes": 3,
+            "first_probe_seconds": 0.12,
+            "first_probe_status": 200,
+            "last_accepted_seconds": 0.35,
+            "first_refused_seconds": 2.58,
+            "reaccepted_after_refusal": false,
+            "window_observed": true
+          },
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "step": "copied-credential-rejected-after-rotation",
+      "model_prediction": "satisfied_within_scope",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "replay_case": "targeted-containment",
+      "objective": "protect-canary"
+    },
+    {
+      "step": "s-sec-5-old-credential-accepted-right-after-rotation",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "elapsed_seconds_since_rotation": 0.12,
+      "rotation_propagation_seconds": 3,
+      "acknowledged_seconds": 2.58,
+      "window": {
+        "probes": 3,
+        "first_probe_seconds": 0.12,
+        "first_probe_status": 200,
+        "last_accepted_seconds": 0.35,
+        "first_refused_seconds": 2.58,
+        "reaccepted_after_refusal": false,
+        "window_observed": true
+      },
+      "parameter_source": "measured in this run: ceil(acknowledgement time)",
+      "analysis_input": "targeted-containment with canary-service rotation_propagation_seconds=d",
+      "old_credential": "copied"
+    },
+    {
+      "step": "s-sec-5-old-credential-rejected-after-propagation-wait",
+      "model_prediction": "satisfied_within_scope",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "elapsed_seconds_since_rotation": 5.12,
+      "wait_seconds": 3,
+      "rotation_propagation_seconds": 3,
+      "acknowledged_seconds": 2.58,
+      "window": {
+        "probes": 3,
+        "first_probe_seconds": 0.12,
+        "first_probe_status": 200,
+        "last_accepted_seconds": 0.35,
+        "first_refused_seconds": 2.58,
+        "reaccepted_after_refusal": false,
+        "window_observed": true
+      },
+      "parameter_source": "measured in this run: ceil(acknowledgement time)",
+      "analysis_input": "targeted-containment with canary-service rotation_propagation_seconds=d",
+      "old_credential": "copied"
+    },
+    {
+      "step": "legitimate-workload-uses-rotated-credential",
+      "model_prediction": "preserved",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "targeted-containment",
+      "objective": "legitimate:release-canary"
+    },
+    {
+      "step": "collector-writes-contained-bundle",
+      "model_prediction": "written",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "exit_code": 0,
+      "audit_transport": "supervisor relay of the API server audit log to the collector's loopback webhook receiver",
+      "relay": {
+        "batches": 1,
+        "batch_statuses": [
+          200
+        ],
+        "malformed_lines_not_sent": 0,
+        "ok": true
+      }
+    },
+    {
+      "step": "contained-bundle-validates",
+      "model_prediction": "valid",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "schema": "afterlock.replay/1",
+      "accepted_events": 156,
+      "rejected": 0,
+      "conflicts": 0
+    },
+    {
+      "step": "contained-inventory-shows-attack-and-containment",
+      "model_prediction": "present",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "checks": {
+        "pod-create-event-present": true,
+        "pod-create-correlated-to-live-uid": true,
+        "pod-create-service-account": true,
+        "binding-delete-event-present": true,
+        "binding-absent-from-inventory": true,
+        "attacker-pod-delete-event-present": true,
+        "attacker-pod-absent-from-inventory": true,
+        "only-kept-pods-run-as-attacker-sa": true,
+        "source-secret-rotation-event-present": true
+      }
+    },
+    {
+      "step": "collected-conclusion-matches-targeted-containment",
+      "model_prediction": "contained_within_scope",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "reference_case": "targeted-containment",
+      "comparison": {
+        "collected_conclusion": "contained_within_scope",
+        "reference_conclusion": "contained_within_scope",
+        "shared_objectives": [
+          "protect-secret"
+        ],
+        "mismatched_objectives": {},
+        "match": true,
+        "raw_conclusion": "unknown",
+        "raw_objectives": {
+          "protect-secret": "unknown"
+        },
+        "raw_violations": {},
+        "resolved_gap_kinds": {
+          "audit-before-window": 1,
+          "rbac-rule-unmodeled": 5
+        },
+        "blocking": []
+      },
+      "coverage_limitations": {
+        "protect-canary": "downstream service state is not a Kubernetes object the collector observes; not analysed from collected evidence (checked by canary probes)",
+        "release-canary": "downstream service state is not a Kubernetes object the collector observes; not analysed from collected evidence (checked by canary probes)",
+        "remediation:rotate_downstream_credential:canary-service": "downstream service state is not a Kubernetes object the collector observes; not analysed from collected evidence (checked by canary probes)"
+      },
+      "gap_kinds": {
+        "audit-before-window": 1,
+        "rbac-rule-unmodeled": 5
+      }
+    },
+    {
+      "step": "contained-bundle-has-no-credential-material",
+      "model_prediction": "no_leak",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "observation": "supervisor-check",
+      "findings": [],
+      "scanned_files": [
+        "analysis-result-contained-gaps-resolved.json",
+        "analysis-result-contained.json",
+        "analysis-result.json",
+        "bundle-contained-gaps-resolved/case.json",
+        "bundle-contained-gaps-resolved/events.jsonl",
+        "bundle-contained-gaps-resolved/inventory.json",
+        "bundle-contained-gaps-resolved/manifest.json",
+        "bundle-contained/case.json",
+        "bundle-contained/events.jsonl",
+        "bundle-contained/inventory.json",
+        "bundle-contained/manifest.json",
+        "bundle/case.json",
+        "bundle/events.jsonl",
+        "bundle/inventory.json",
+        "bundle/manifest.json",
+        "case-contained.json",
+        "case-template.json",
+        "collector-1.log",
+        "collector-2.log",
+        "collector-4.log",
+        "partial-2/case.json",
+        "partial-2/events.jsonl",
+        "partial-2/inventory.json",
+        "partial-2/manifest.json",
+        "spool-contained.jsonl",
+        "spool.jsonl"
+      ],
+      "bundle": "labs/collected/targeted-containment-20260926T132801Z"
+    },
+    {
+      "step": "negative-control-admission-denies",
+      "model_prediction": "satisfied_within_scope",
+      "expect": "answer_denied",
+      "observed_http_status": 422,
+      "agrees": true,
+      "replay_case": "admission-denied",
+      "objective": "protect-secret"
+    }
+  ]
+}
