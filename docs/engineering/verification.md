@@ -77,6 +77,28 @@ Local (Windows 11): `services/web` 31 tests pass; collector `go test -race -coun
 go1.24.13; `tests/unit/test_lab_receipts.py` passes. Windows checkouts need LF line endings for
 replay checksums (`.gitattributes` enforces this).
 
+## Second round (2026-09-26)
+
+CI run [36235167730](https://github.com/rakshit-737/afterlock/actions/runs/36235167730): all six
+jobs pass. New since the first round:
+
+| Job | New coverage |
+|---|---|
+| containers | builds api/worker, web, collector images; `docker compose up --wait`; `scripts/compose-smoke`: postgres-backed health, case -> analysis job -> `residual_path`, web CSP and `/v1` proxy, non-root / read-only rootfs / cap_drop ALL on every service |
+| web | Playwright end-to-end against the real API (6 tests) incl. axe zero serious/critical in light and dark |
+| postgres | migration 0003 and per-cluster case ids, SSE on PostgreSQL |
+| portable | OIDC validator (local keys, fake JWKS), held-out determinism and 44/44 engine-reference agreement, S-SEC-5 property tests |
+
+A flaky OIDC test (time claims computed at collection time) was fixed before this run.
+
+### Collector against the live lab (run [36234401716](https://github.com/rakshit-737/afterlock/actions/runs/36234401716))
+
+`lab_contradicted`. Passing: bundle written, bundle validates (1220 events, 0 rejected),
+restart gaps recorded (2 injected), no credential material in any produced file. Failing:
+Pod-create not correlated to the live UID; conclusion `unknown` vs `residual_path`; 48
+`list-failed` gaps. An earlier run found a real engine defect: `project()` raised `KeyError`
+when one stolen token appeared in several audit events (fixed, regression test added).
+
 ## Not executed (these are not passes)
 
 | Check | Why | How to run |
