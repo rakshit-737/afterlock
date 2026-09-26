@@ -53,6 +53,11 @@ Every run ends with a `collector.heartbeat` record, so `required_sources` /
   with that warning. When disabled, the bundle carries a
   `secret-metadata-disabled` gap, and Secret reads without a known version
   become missing-metadata coverage gaps in the analysis, never "no read".
+  When the grant is a namespaced RoleBinding (recommended), pass
+  `--secret-namespaces ns1,ns2`: the collector then lists/watches Secret
+  metadata per namespace. Without it the list is cluster-wide, which a
+  RoleBinding does not permit (403, recorded as `list-failed` and
+  `inventory-unsynced` for `secrets`).
 * **Webhook receiver** requires TLS (`--tls-cert/--tls-key`); plain HTTP is
   allowed only on a loopback address with `--insecure-http-loopback`. Callers
   must send `Authorization: Bearer <token>` (≥16 characters, from
@@ -108,6 +113,7 @@ the projector turns each into an `observation_gap` coverage gap.
 | `collector-restart` | the collector started with an existing spool (plus torn-tail notice if a partial record was discarded) |
 | `audit-malformed`, `audit-dropped` | an audit record or webhook batch could not be parsed or exceeded limits |
 | `audit-unmodeled` | impersonation |
+| `audit-before-window` | audit events before `--audit-since` (the evidence window start) were excluded; one gap carries the count |
 | `pod-uncorrelated` | a successful Pod create/exec whose UID could not be determined |
 | `admission-policy-unmodeled`, `rbac-rule-unmodeled`, `secret-metadata-disabled` | observed but not modeled |
 
