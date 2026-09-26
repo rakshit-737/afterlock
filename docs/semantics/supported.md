@@ -54,9 +54,9 @@ exists yet.
 | ID | Rule | Lab step |
 |---|---|---|
 | S-SEC-1 | An authorized `get` on a Secret yields knowledge of its current version. Knowledge is permanent. | `attacker-reads-secret` |
-| S-SEC-2 | Knowing a Secret version that a downstream service sources yields that service's credential for that version. | planned (canary service) |
-| S-SEC-3 | A downstream credential authenticates only if the service currently accepts that version. | planned |
-| S-SEC-4 | `rotate_downstream_credential` increments the Secret version and makes the service accept only the new version, as one atomic, acknowledged defender step. | planned |
+| S-SEC-2 | Knowing a Secret version that a downstream service sources yields that service's credential for that version. | `copied-credential-accepted-by-canary` |
+| S-SEC-3 | A downstream credential authenticates only if the service currently accepts that version. | `copied-credential-survives-kubernetes-containment`, `copied-credential-rejected-after-rotation` |
+| S-SEC-4 | `rotate_downstream_credential` increments the Secret version and makes the service accept only the new version, as one atomic, acknowledged defender step. | `rotation-acknowledged-by-canary` (outcome agrees; in the lab the change took 54.7 s to take effect, so the step is not atomic in time) |
 
 ## Defender actions
 
