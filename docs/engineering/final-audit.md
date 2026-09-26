@@ -225,7 +225,7 @@ trust boundary. It is not a CVSS score.
 
 | # | Risk | Source | Severity | Recommended next action |
 |---|---|---|---|---|
-| R1 | **Possible-history expiry evaluated at analysis time (U-1).** A seeded credential that had expired by `analysis_time` but was usable earlier may have yielded Secret knowledge that the conservative view misses. Both checkers agree, so differential testing cannot catch it | engine review U-1 | **High** (potential false containment in the conservative view; semantics undecided) | Decide the semantics in `supported.md` (evaluate the history phase over `[acquired_at, analysis_time]`). Add a positive case plus a negative control, and implement it in both checkers |
+| R1 | **Possible-history expiry evaluated at analysis time (U-1).** A seeded credential that had expired by `analysis_time` but was usable earlier may have yielded Secret knowledge that the conservative view misses. Both checkers agree, so differential testing cannot catch it | engine review U-1 | ~~High~~ **Resolved.** Decision: expiry in possible history is evaluated at the time of each hypothetical use, over `[history_start, analysis_time]` (S-TOK-1). Implemented separately in the engine (72def25 model `history_start`, 5c534aa `credential_usable(at=)`, 297d9ba engine) and the reference checker (e8eedca, including witness use-time checks). Positive cases, negative controls and equal-timestamp edges in `tests/property/test_history_expiry.py` (9800d6a, written failing first); generator coverage in c2ccfe8. No replay or held-out label changed | None |
 | R2 | S-SEC-1 list/watch knowledge is model-level only (A-3/E-4 fixed without a lab receipt) | engine review A-3 | Medium | Add a lab step: `list secrets`-only SA reads the Secret value |
 | R3 | Attribution through deleted controller Pods (U-3): observed reads may be dropped, so a copied credential is missed | engine review U-3, E-1 partial | Medium | Emit a coverage gap "request from unknown Pod UID", which yields `unknown`, never containment |
 | R4 | Split or custom-encoded tokens bypass pattern redaction (U-4) | engine review | Medium | Keep the allowlisted-field design and add an entropy heuristic on persisted free-text fields |
@@ -316,15 +316,14 @@ overstated it, and this audit fixed the inconsistencies.
 
 ### Release blockers (for a tagged research release)
 
-1. Resolve R1 (possible-history expiry semantics). It is the one open item that could produce
-   false containment.
+1. ~~Resolve R1 (possible-history expiry semantics).~~ Resolved (see R1).
 2. Update `status.md` and `verification.md` as listed in section 3.
 3. ~~Build the API image from the lockfile (R6).~~ Done; needs a green `containers` CI run.
 4. Get a CI run on the final commit, then tag. Say "research-grade" in the release notes.
 
 ### Prioritized next steps
 
-1. R1 semantics decision plus cases in both checkers.
+1. ~~R1 semantics decision plus cases in both checkers.~~ Done (see R1).
 2. Lab steps for S-TOK-1..3, S-SEC-1 list/watch, S-WL-2..4, `defender-race`, and the naive plan (R2, R16).
 3. Kubernetes version matrix and a multi-node cluster (R15).
 4. Execute held-out templates in the lab to get outcome-derived labels (R17).
