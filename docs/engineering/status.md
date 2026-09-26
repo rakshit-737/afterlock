@@ -1,6 +1,6 @@
 # Engineering status
 
-_Last updated: 2026-09-26 (persistence, collector, frontend, hardened lab; version 0.1.0)._
+_Last updated: 2026-09-26 (second parallel round: containers, collector in lab, SSE/OIDC, e2e, held-out set, S-SEC-5; version 0.1.0)._
 
 ## Milestone map (phases from docs/research/original-design.md)
 
@@ -8,41 +8,35 @@ _Last updated: 2026-09-26 (persistence, collector, frontend, hardened lab; versi
 |---|---|---|
 | 0: Research and architecture | done | AGENTS.md, architecture, semantics, threat model, claims, ADRs 0001–0004 |
 | 1: Core engine | done | Typed model, production engine, independent reference checker |
-| 2: Data/telemetry | partial | Replay bundles, validation, dedup, gaps, redaction. Go collector (`services/collector`): read-only list/watch inventory, audit file + webhook ingestion, audit-ID dedup, explicit gap records, bounded spool, `afterlock.replay/1` output; tested with fakes and a golden bundle. **Missing:** a run against a live cluster; evidence/cursor/history tables in PostgreSQL |
+| 2: Data/telemetry | partial | Replay bundles, validation, dedup, gaps, redaction. Go collector with read-only RBAC, audit ingestion, gap records, spool. **Live lab:** the collector runs against kind with audit logging; its bundle validates (1220 events), passes the leak scan, and records injected restarts as gaps. **Open:** the attacker Pod create is not yet correlated to the live Pod UID and 48 list calls fail, so the engine concludes `unknown` (not `residual_path`) from collected evidence. Conservative, but a real defect under investigation |
 | 3: Security intelligence | done (MVP scope) | Provenance hyperedges, two epistemic views, interleaving, planner |
-| 4: Backend | partial | FastAPI with bearer auth, roles, per-cluster scoping. PostgreSQL storage (`migrations/`, checksummed runner), leased worker (`services/worker`: SKIP LOCKED claims, heartbeats, bounded retries, cancellation, publication only inside the lease-checking transaction), async `*-jobs` endpoints. PostgreSQL contract tests pass in CI. **Missing:** SSE progress, OIDC, retention job, replay export from the DB, interruptible engine calls |
-| 5: Frontend | partial | `services/web` (React + Vite + TS) over the v1 API: case upload, analysis, objectives, witnesses, timeline, coverage, explanation, verification, plans; model-level vs lab-confirmed shown separately. **Missing:** provenance graph, evidence drawer, Playwright end-to-end, accessibility audit, async-job wiring |
+| 4: Backend | mostly done | Bearer and optional OIDC auth (RS256/ES256), roles, per-cluster scoping; PostgreSQL storage with migrations 0001–0003 (case ids unique per cluster); leased worker; async jobs; SSE job progress carrying the manifest version; streamed body limit, bounded in-memory store, verification/plan concurrency limits, API docs off by default. **Missing:** retention job, replay export from the DB, audit logging, OIDC against a real identity provider |
+| 5: Frontend | mostly done | `services/web`: case upload, analysis via background jobs (polling, cancel), results, provenance graph with evidence drawer, credential-lifecycle view, verification, plans. Playwright end-to-end against the real API passes in CI, including axe with zero serious/critical violations in light and dark. **Missing:** SSE consumption, OpenAPI-generated types |
 | 6: Demo laboratory | done (spike scope) | Canary relying service, Calico-enforced NetworkPolicies with isolation steps, `lab reset`, `spike --repeat N`. 3 repeated runs x 15 steps all agree with the model (receipts in `labs/receipts/`) |
-| 7: Detection/evaluation | partial | 16 hand-authored cases plus lab-derived labels (`benchmarks/labels/lab-derived.json`, from observations only). **Missing:** held-out templates |
-| 8: Advanced capabilities | not started | |
-| 9: Hardening | partial | Actions pinned by SHA, images by digest, CI installs from `uv.lock`, CycloneDX SBOM job, Dependabot. First pattern-based review in `docs/security/review-2026-09-26.md`. **Missing:** full adversarial review, provenance/signing |
-| 10: Benchmarks | partial | Baselines/ablations; lab-derived labels reported separately from hand-authored ones |
+| 7: Detection/evaluation | partial | 16 hand-authored cases, lab-derived labels, and 44 held-out cases from 5 seeded templates labelled only by the reference checker (`datasets/heldout/`). **Missing:** held-out templates executed in the lab |
+| 8: Advanced capabilities | started | S-SEC-5: optional per-service rotation propagation window, honoured by engine, reference checker and planner. **Missing:** a lab receipt at t+d; other items |
+| 9: Hardening | partial | Actions pinned by SHA, all Dockerfile/compose images by digest (Calico by manifest SHA-256 only), lockfile installs, SBOM, Dependabot. Review findings 3–6, 8 and the case-id disclosure fixed. **Missing:** full adversarial review, provenance/signing, uvicorn not in the lockfile |
+| 10: Benchmarks | partial | Hand-authored, lab-derived and held-out labels reported separately. Held-out engine-vs-reference agreement 44/44; committed reports hold no timings |
 | 11: Documentation | partial | README, CLI/API/semantics/collector/frontend docs. Not yet reproduced in a fresh environment by a third party |
 | 12: Final audit | not started | |
 
 ## Known failures and open risks
 
-1. **Live validation covers one version.** Kubernetes v1.31.4 on an idle kind cluster: 15/15
-   steps agree across 3 runs (S-TOK-4, S-SEC-1..4, admission, network isolation). Other rules
-   and versions remain model-level.
-2. **Propagation is idealized in the model.** Canary rotation (S-SEC-4) takes effect after the
-   kubelet refreshes the mounted Secret: 54.7 s with the default sync period, 2.4-13.5 s with
-   `syncFrequency: 10s`. During that window the copied credential still works. The model treats
-   rotation as instantaneous.
-3. Hand-authored expectations and the engine share authors. Lab-derived labels exist but cover
-   4 cases.
-4. Containers (API/worker image, web image, compose stack, collector image) have never been
-   built; no Docker on the development host and no CI build job.
-5. Open review items: request-size limit is Content-Length-only (chunked bodies unbounded);
-   in-memory store unbounded; verification endpoint can be CPU-expensive; `/v1/docs` is
-   unauthenticated; `case_id` is globally unique so a 409 can reveal another cluster's case.
-6. The collector has not run against a real API server; Secret metadata collection is opt-in
-   because RBAC cannot restrict `list secrets` to metadata.
-7. Calico, postgres and web base images are pinned by tag, not digest.
+1. **Collected evidence is not yet enough for a conclusion.** From the live collector bundle
+   the engine concludes `unknown`, while the hand-authored case concludes `residual_path`:
+   Pod-create correlation to the live UID fails and 48 list calls fail. The engine errs on the
+   safe side (no false containment claim).
+2. **Live validation covers one version.** Kubernetes v1.31.4 on an idle kind cluster: 15/15
+   spike steps agree across 3 runs. Other rules and versions remain model-level.
+3. **Propagation.** Rotation took 2.4–54.7 s in the lab. The model can now represent it
+   (S-SEC-5), but only when inputs supply the delay.
+4. Held-out labels come from a second implementation of the same written semantics; they
+   cannot catch a flaw in the semantics themselves.
+5. OIDC is tested only with local keys and a fake JWKS. All API limits are per process.
+6. uvicorn is installed by pinned version, not from the lockfile.
 
 ## Next safe task
 
-In order: (a) a CI job that builds all container images and brings up `docker compose`;
-(b) run the collector against the kind lab (audit webhook plus a watch-expiry fault) and record
-receipts; (c) SSE progress and OIDC (prompt 08/09 remainder); (d) Playwright end-to-end tests for
-the frontend against the API.
+(a) Fix collector Pod-UID correlation and the failing list calls, then rerun `live-lab` until
+`collect` is `lab_confirmed`; (b) a lab receipt for S-SEC-5 (old credential rejected at t+d);
+(c) add uvicorn to a locked extra; (d) full adversarial review (phase 9) and final audit.
