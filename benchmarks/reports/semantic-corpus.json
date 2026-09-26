@@ -1,9 +1,6 @@
 {
   "label_source": "hand-authored expectations (not lab-validated)",
   "environment": {
-    "python": "3.11.15",
-    "platform": "Linux-6.18.44-fc-v37-x86_64-with-glibc2.39",
-    "processor": "x86_64",
     "afterlock": "0.1.0",
     "repeat": 3
   },
@@ -51,512 +48,2218 @@
       "mode": "full",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.673
+      "deterministic": true
     },
     {
       "case": "admission-denied",
       "mode": "snapshot_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.479
+      "deterministic": true
     },
     {
       "case": "admission-denied",
       "mode": "history_without_lifecycle",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.519
+      "deterministic": true
     },
     {
       "case": "admission-denied",
       "mode": "final_state_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.458
+      "deterministic": true
     },
     {
       "case": "admission-unsupported",
       "mode": "full",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 0.247
+      "deterministic": true
     },
     {
       "case": "admission-unsupported",
       "mode": "snapshot_only",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 0.193
+      "deterministic": true
     },
     {
       "case": "admission-unsupported",
       "mode": "history_without_lifecycle",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 0.2
+      "deterministic": true
     },
     {
       "case": "admission-unsupported",
       "mode": "final_state_only",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 0.194
+      "deterministic": true
     },
     {
       "case": "alternative-binding",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 3.591
+      "deterministic": true
     },
     {
       "case": "alternative-binding",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.84
+      "deterministic": true
     },
     {
       "case": "alternative-binding",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 4.326
+      "deterministic": true
     },
     {
       "case": "alternative-binding",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.916
+      "deterministic": true
     },
     {
       "case": "audience-mismatch",
       "mode": "full",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.136
+      "deterministic": true
     },
     {
       "case": "audience-mismatch",
       "mode": "snapshot_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.103
+      "deterministic": true
     },
     {
       "case": "audience-mismatch",
       "mode": "history_without_lifecycle",
       "expected": "contained_within_scope",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.249
+      "deterministic": true
     },
     {
       "case": "audience-mismatch",
       "mode": "final_state_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.123
+      "deterministic": true
     },
     {
       "case": "controller-contained",
       "mode": "full",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 3.316
+      "deterministic": true
     },
     {
       "case": "controller-contained",
       "mode": "snapshot_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.241
+      "deterministic": true
     },
     {
       "case": "controller-contained",
       "mode": "history_without_lifecycle",
       "expected": "contained_within_scope",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 4.429
+      "deterministic": true
     },
     {
       "case": "controller-contained",
       "mode": "final_state_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.208
+      "deterministic": true
     },
     {
       "case": "controller-replacement",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 4.937
+      "deterministic": true
     },
     {
       "case": "controller-replacement",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.194
+      "deterministic": true
     },
     {
       "case": "controller-replacement",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 4.399
+      "deterministic": true
     },
     {
       "case": "controller-replacement",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.591
+      "deterministic": true
     },
     {
       "case": "copied-downstream",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 1.96
+      "deterministic": true
     },
     {
       "case": "copied-downstream",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.212
+      "deterministic": true
     },
     {
       "case": "copied-downstream",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 2.2
+      "deterministic": true
     },
     {
       "case": "copied-downstream",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.297
+      "deterministic": true
     },
     {
       "case": "defender-race",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 2.781
+      "deterministic": true
     },
     {
       "case": "defender-race",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.176
+      "deterministic": true
     },
     {
       "case": "defender-race",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 3.692
+      "deterministic": true
     },
     {
       "case": "defender-race",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.259
+      "deterministic": true
     },
     {
       "case": "incomplete-telemetry",
       "mode": "full",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 2.16
+      "deterministic": true
     },
     {
       "case": "incomplete-telemetry",
       "mode": "snapshot_only",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 0.202
+      "deterministic": true
     },
     {
       "case": "incomplete-telemetry",
       "mode": "history_without_lifecycle",
       "expected": "unknown",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 2.908
+      "deterministic": true
     },
     {
       "case": "incomplete-telemetry",
       "mode": "final_state_only",
       "expected": "unknown",
       "predicted": "unknown",
-      "deterministic": true,
-      "median_ms": 0.31
+      "deterministic": true
     },
     {
       "case": "no-admission-control",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.783
+      "deterministic": true
     },
     {
       "case": "no-admission-control",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.779
+      "deterministic": true
     },
     {
       "case": "no-admission-control",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.787
+      "deterministic": true
     },
     {
       "case": "no-admission-control",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.784
+      "deterministic": true
     },
     {
       "case": "possible-read",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.368
+      "deterministic": true
     },
     {
       "case": "possible-read",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.132
+      "deterministic": true
     },
     {
       "case": "possible-read",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.396
+      "deterministic": true
     },
     {
       "case": "possible-read",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.378
+      "deterministic": true
     },
     {
       "case": "residual-token",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 1.85
+      "deterministic": true
     },
     {
       "case": "residual-token",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.154
+      "deterministic": true
     },
     {
       "case": "residual-token",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 1.893
+      "deterministic": true
     },
     {
       "case": "residual-token",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.501
+      "deterministic": true
     },
     {
       "case": "same-name-recreation",
       "mode": "full",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.414
+      "deterministic": true
     },
     {
       "case": "same-name-recreation",
       "mode": "snapshot_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.131
+      "deterministic": true
     },
     {
       "case": "same-name-recreation",
       "mode": "history_without_lifecycle",
       "expected": "contained_within_scope",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.553
+      "deterministic": true
     },
     {
       "case": "same-name-recreation",
       "mode": "final_state_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.414
+      "deterministic": true
     },
     {
       "case": "targeted-containment",
       "mode": "full",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 2.086
+      "deterministic": true
     },
     {
       "case": "targeted-containment",
       "mode": "snapshot_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.174
+      "deterministic": true
     },
     {
       "case": "targeted-containment",
       "mode": "history_without_lifecycle",
       "expected": "contained_within_scope",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 2.703
+      "deterministic": true
     },
     {
       "case": "targeted-containment",
       "mode": "final_state_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.292
+      "deterministic": true
     },
     {
       "case": "token-expiry-active",
       "mode": "full",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.305
+      "deterministic": true
     },
     {
       "case": "token-expiry-active",
       "mode": "snapshot_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.245
+      "deterministic": true
     },
     {
       "case": "token-expiry-active",
       "mode": "history_without_lifecycle",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.243
+      "deterministic": true
     },
     {
       "case": "token-expiry-active",
       "mode": "final_state_only",
       "expected": "residual_path",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.273
+      "deterministic": true
     },
     {
       "case": "token-expiry-wait",
       "mode": "full",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.316
+      "deterministic": true
     },
     {
       "case": "token-expiry-wait",
       "mode": "snapshot_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.114
+      "deterministic": true
     },
     {
       "case": "token-expiry-wait",
       "mode": "history_without_lifecycle",
       "expected": "contained_within_scope",
       "predicted": "residual_path",
-      "deterministic": true,
-      "median_ms": 0.371
+      "deterministic": true
     },
     {
       "case": "token-expiry-wait",
       "mode": "final_state_only",
       "expected": "contained_within_scope",
       "predicted": "contained_within_scope",
-      "deterministic": true,
-      "median_ms": 0.122
+      "deterministic": true
     }
-  ]
+  ],
+  "lab_derived": {
+    "available": true,
+    "label_source": "live-lab observations",
+    "receipts": [
+      "spike-20260926T054738Z.json",
+      "spike-20260926T062752Z.json",
+      "spike-20260926T073847Z-r1.json",
+      "spike-20260926T073847Z-r2.json",
+      "spike-20260926T073847Z-r3.json"
+    ],
+    "disputed": 0,
+    "summary": {
+      "full": {
+        "labels": 6,
+        "agreement": 6
+      },
+      "snapshot_only": {
+        "labels": 6,
+        "agreement": 3
+      },
+      "history_without_lifecycle": {
+        "labels": 6,
+        "agreement": 5
+      },
+      "final_state_only": {
+        "labels": 6,
+        "agreement": 6
+      }
+    },
+    "rows": [
+      {
+        "case": "admission-denied",
+        "objective": "protect-secret",
+        "label": "satisfied_within_scope",
+        "evidence": 5,
+        "predicted": {
+          "full": "satisfied_within_scope",
+          "snapshot_only": "satisfied_within_scope",
+          "history_without_lifecycle": "satisfied_within_scope",
+          "final_state_only": "satisfied_within_scope"
+        }
+      },
+      {
+        "case": "copied-downstream",
+        "objective": "protect-canary",
+        "label": "violated",
+        "evidence": 4,
+        "predicted": {
+          "full": "violated",
+          "snapshot_only": "satisfied_within_scope",
+          "history_without_lifecycle": "violated",
+          "final_state_only": "violated"
+        }
+      },
+      {
+        "case": "residual-token",
+        "objective": "protect-canary",
+        "label": "violated",
+        "evidence": 4,
+        "predicted": {
+          "full": "violated",
+          "snapshot_only": "satisfied_within_scope",
+          "history_without_lifecycle": "violated",
+          "final_state_only": "violated"
+        }
+      },
+      {
+        "case": "residual-token",
+        "objective": "protect-secret",
+        "label": "violated",
+        "evidence": 5,
+        "predicted": {
+          "full": "violated",
+          "snapshot_only": "satisfied_within_scope",
+          "history_without_lifecycle": "violated",
+          "final_state_only": "violated"
+        }
+      },
+      {
+        "case": "targeted-containment",
+        "objective": "legitimate:release-canary",
+        "label": "preserved",
+        "evidence": 4,
+        "predicted": {
+          "full": "preserved",
+          "snapshot_only": "preserved",
+          "history_without_lifecycle": "preserved",
+          "final_state_only": "preserved"
+        }
+      },
+      {
+        "case": "targeted-containment",
+        "objective": "protect-canary",
+        "label": "satisfied_within_scope",
+        "evidence": 4,
+        "predicted": {
+          "full": "satisfied_within_scope",
+          "snapshot_only": "satisfied_within_scope",
+          "history_without_lifecycle": "violated",
+          "final_state_only": "satisfied_within_scope"
+        }
+      }
+    ]
+  },
+  "heldout": {
+    "available": true,
+    "label_source": "independent reference checker (packages/afterlock_reference)",
+    "seed": "afterlock-heldout-v1",
+    "summary": {
+      "full": {
+        "cases": 44,
+        "agreement": 44,
+        "containment_claims": 18,
+        "false_containment_claims": 0,
+        "residual_recall": "26/26",
+        "decisions": 44,
+        "deterministic": true,
+        "objective_level_agreement": 44
+      },
+      "snapshot_only": {
+        "cases": 44,
+        "agreement": 24,
+        "containment_claims": 38,
+        "false_containment_claims": 20,
+        "residual_recall": "6/26",
+        "decisions": 44,
+        "deterministic": true,
+        "objective_level_agreement": 21
+      },
+      "history_without_lifecycle": {
+        "cases": 44,
+        "agreement": 32,
+        "containment_claims": 6,
+        "false_containment_claims": 0,
+        "residual_recall": "26/26",
+        "decisions": 44,
+        "deterministic": true,
+        "objective_level_agreement": 30
+      },
+      "final_state_only": {
+        "cases": 44,
+        "agreement": 39,
+        "containment_claims": 23,
+        "false_containment_claims": 5,
+        "residual_recall": "21/26",
+        "decisions": 44,
+        "deterministic": true,
+        "objective_level_agreement": 34
+      }
+    },
+    "by_template": {
+      "controller-recreate": {
+        "full": "8/8",
+        "snapshot_only": "3/8",
+        "history_without_lifecycle": "5/8",
+        "final_state_only": "6/8"
+      },
+      "crb-escalation": {
+        "full": "9/9",
+        "snapshot_only": "6/9",
+        "history_without_lifecycle": "6/9",
+        "final_state_only": "6/9"
+      },
+      "delayed-revocation": {
+        "full": "9/9",
+        "snapshot_only": "3/9",
+        "history_without_lifecycle": "9/9",
+        "final_state_only": "9/9"
+      },
+      "group-subject": {
+        "full": "9/9",
+        "snapshot_only": "6/9",
+        "history_without_lifecycle": "9/9",
+        "final_state_only": "9/9"
+      },
+      "token-expiry": {
+        "full": "9/9",
+        "snapshot_only": "6/9",
+        "history_without_lifecycle": "3/9",
+        "final_state_only": "9/9"
+      }
+    },
+    "disagreements_full": [],
+    "rows": [
+      {
+        "case": "controller-recreate-0-delete-controller",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-controller",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-controller",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-controller",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-pods",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-pods",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-pods",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-delete-pods",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-0-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-controller",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-controller",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-controller",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-controller",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-pods",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-pods",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-pods",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-delete-pods",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-1-partial-rotation",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-controller",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-controller",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-controller",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-controller",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-pods",
+        "template": "controller-recreate",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-pods",
+        "template": "controller-recreate",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-pods",
+        "template": "controller-recreate",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "controller-recreate-2-delete-pods",
+        "template": "controller-recreate",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-full",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-full",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-full",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-full",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-purge-first",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-purge-first",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-purge-first",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-purge-first",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-rb-only",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-rb-only",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-rb-only",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-0-rb-only",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-full",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-full",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-full",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-full",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-purge-first",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-purge-first",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-purge-first",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-purge-first",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-rb-only",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-rb-only",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-rb-only",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-1-rb-only",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-full",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-full",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-full",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-full",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-purge-first",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-purge-first",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-purge-first",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-purge-first",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-rb-only",
+        "template": "crb-escalation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-rb-only",
+        "template": "crb-escalation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-rb-only",
+        "template": "crb-escalation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "crb-escalation-2-rb-only",
+        "template": "crb-escalation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-full",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-full",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-full",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-full",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-short",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-short",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-short",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-0-wait-short",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-full",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-full",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-full",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-full",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-short",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-short",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-short",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-1-wait-short",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-rotate-only",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-full",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-full",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-full",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-full",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-short",
+        "template": "delayed-revocation",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-short",
+        "template": "delayed-revocation",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-short",
+        "template": "delayed-revocation",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "delayed-revocation-2-wait-short",
+        "template": "delayed-revocation",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-both-bindings",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-both-bindings",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-both-bindings",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-both-bindings",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-sa-binding-only",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-sa-binding-only",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-sa-binding-only",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-0-sa-binding-only",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-both-bindings",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-both-bindings",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-both-bindings",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-both-bindings",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-sa-binding-only",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-sa-binding-only",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-sa-binding-only",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-1-sa-binding-only",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-both-bindings",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-both-bindings",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-both-bindings",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-both-bindings",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-miss-one-consumer",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-sa-binding-only",
+        "template": "group-subject",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-sa-binding-only",
+        "template": "group-subject",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-sa-binding-only",
+        "template": "group-subject",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "group-subject-2-sa-binding-only",
+        "template": "group-subject",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-0-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-1-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-delete-bound-pod",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "residual_path",
+        "predicted": "contained_within_scope",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-before-expiry",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "residual_path",
+        "predicted": "residual_path",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "full",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "snapshot_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "history_without_lifecycle",
+        "expected": "contained_within_scope",
+        "predicted": "residual_path",
+        "objectives_agree": false,
+        "deterministic": true
+      },
+      {
+        "case": "token-expiry-2-wait-past-expiry",
+        "template": "token-expiry",
+        "mode": "final_state_only",
+        "expected": "contained_within_scope",
+        "predicted": "contained_within_scope",
+        "objectives_agree": true,
+        "deterministic": true
+      }
+    ]
+  }
 }
