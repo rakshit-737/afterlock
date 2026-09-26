@@ -135,3 +135,36 @@ jobs:
           set -o pipefail
           python -m pytest -q -rs tests/unit/test_migrate.py tests/integration/test_storage_contract.py tests/integration/test_api_jobs.py | tee pg.log
           ! grep -q "BLOCKED: no PostgreSQL" pg.log
+  collector:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: services/collector
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: services/collector/go.mod
+          cache-dependency-path: services/collector/go.sum
+      - name: Verify module
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go mod verify
+          test -z "$(gofmt -l .)"
+      - name: Vet
+        env:
+          GOTOOLCHAIN: local
+        run: go vet ./...
+      - name: Test (includes byte-for-byte golden bundle check)
+        env:
+          GOTOOLCHAIN: local
+        run: go test -race -count=1 ./...
+      - name: Build
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: "0"
+        run: go build -trimpath -o /tmp/afterlock-collector ./cmd/afterlock-collector
