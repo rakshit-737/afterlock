@@ -123,6 +123,7 @@ class OIDCValidator:
         self._lock = threading.Lock()
         self._keys: dict[str, Any] = {}
         self._fetched_at: float | None = None
+        self._attempted_at: float | None = None
 
     # JWKS cache -------------------------------------------------------------
     def _refresh(self) -> None:
@@ -145,13 +146,17 @@ class OIDCValidator:
         with self._lock:
             now = self._clock()
             stale = self._fetched_at is None or now - self._fetched_at >= self.config.jwks_ttl
-            if stale or (kid not in self._keys and now - (self._fetched_at or 0) >= self.config.jwks_min_refresh):
+            # Every fetch attempt (successful or not) starts the back-off, so neither an unknown-kid
+            # storm nor an IdP outage can make each request hit the JWKS URL under this lock.
+            recently_tried = self._attempted_at is not None and now - self._attempted_at < self.config.jwks_min_refresh
+            if not recently_tried and (stale or kid not in self._keys):
+                self._attempted_at = now
                 try:
                     self._refresh()
                 except Exception as exc:
                     if self._fetched_at is None:
                         raise OIDCError(f"JWKS unavailable: {type(exc).__name__}") from exc
-                    # keep serving the previous key set; it is retried on the next request
+                    # keep serving the previous key set; it is retried after jwks_min_refresh
             key = self._keys.get(kid)
         if key is None:
             raise OIDCError("unknown signing key")
