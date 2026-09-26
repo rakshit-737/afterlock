@@ -27,10 +27,13 @@ type GapFunc func(kind, reason string)
 // kindSpec is the read-only access used for one resource kind: list and
 // watch only. No other verb is ever issued.
 type kindSpec struct {
-	kind    string
-	list    func(ctx context.Context, opts metav1.ListOptions) ([]runtime.Object, string, error)
-	watch   func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	convert func(runtime.Object) (string, any, bool)
+	kind string
+	// namespace, when set, scopes list/watch (and the store replace on
+	// relist) to one namespace. Empty means cluster-wide.
+	namespace string
+	list      func(ctx context.Context, opts metav1.ListOptions) ([]runtime.Object, string, error)
+	watch     func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	convert   func(runtime.Object) (string, any, bool)
 }
 
 // Collector runs one list/watch loop per kind.
@@ -47,11 +50,18 @@ type Collector struct {
 // SecretsGVR is the Secret resource read via the metadata-only client.
 var SecretsGVR = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 
-// New builds a collector. meta may be nil to disable Secret metadata.
-func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFunc) *Collector {
+// New builds a collector. md may be nil to disable Secret metadata.
+//
+// secretNamespaces scopes Secret metadata list/watch: empty means
+// cluster-wide (requires a ClusterRoleBinding for secrets list/watch); a
+// non-empty list issues one namespaced list/watch per namespace, which is
+// what a RoleBinding-only grant (the recommended deployment in
+// deploy/secret-metadata-rbac.yaml) permits. A cluster-wide list under a
+// namespaced grant is always forbidden by the API server.
+func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFunc, secretNamespaces ...string) *Collector {
 	c := &Collector{Store: store, Gap: gap, Backoff: 2 * time.Second, restart: map[string]int{}}
 	c.specs = []kindSpec{
-		{KindPod,
+		{KindPod, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.CoreV1().Pods("").List(ctx, o)
 				if err != nil {
@@ -63,7 +73,7 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 				return cs.CoreV1().Pods("").Watch(ctx, o)
 			},
 			convertPod},
-		{KindServiceAccount,
+		{KindServiceAccount, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.CoreV1().ServiceAccounts("").List(ctx, o)
 				if err != nil {
@@ -75,7 +85,7 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 				return cs.CoreV1().ServiceAccounts("").Watch(ctx, o)
 			},
 			convertNamed},
-		{KindRole,
+		{KindRole, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.RbacV1().Roles("").List(ctx, o)
 				if err != nil {
@@ -87,7 +97,7 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 				return cs.RbacV1().Roles("").Watch(ctx, o)
 			},
 			convertRole},
-		{KindClusterRole,
+		{KindClusterRole, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.RbacV1().ClusterRoles().List(ctx, o)
 				if err != nil {
@@ -99,7 +109,7 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 				return cs.RbacV1().ClusterRoles().Watch(ctx, o)
 			},
 			convertRole},
-		{KindRoleBinding,
+		{KindRoleBinding, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.RbacV1().RoleBindings("").List(ctx, o)
 				if err != nil {
@@ -111,7 +121,7 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 				return cs.RbacV1().RoleBindings("").Watch(ctx, o)
 			},
 			convertBinding},
-		{KindClusterRoleBinding,
+		{KindClusterRoleBinding, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.RbacV1().ClusterRoleBindings().List(ctx, o)
 				if err != nil {
@@ -123,7 +133,7 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 				return cs.RbacV1().ClusterRoleBindings().Watch(ctx, o)
 			},
 			convertBinding},
-		{KindAdmissionPolicy,
+		{KindAdmissionPolicy, "",
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
 				l, err := cs.AdmissionregistrationV1().ValidatingAdmissionPolicies().List(ctx, o)
 				if err != nil {
@@ -137,27 +147,45 @@ func New(cs kubernetes.Interface, md metadata.Interface, store *Store, gap GapFu
 			convertNamed},
 	}
 	if md != nil {
-		c.specs = append(c.specs, kindSpec{KindSecret,
+		c.specs = append(c.specs, secretSpecs(md, secretNamespaces)...)
+	}
+	return c
+}
+
+func secretSpecs(md metadata.Interface, namespaces []string) []kindSpec {
+	if len(namespaces) == 0 {
+		namespaces = []string{""}
+	}
+	seen := map[string]bool{}
+	var out []kindSpec
+	for _, ns := range namespaces {
+		if seen[ns] {
+			continue
+		}
+		seen[ns] = true
+		ns := ns
+		out = append(out, kindSpec{KindSecret, ns,
 			func(ctx context.Context, o metav1.ListOptions) ([]runtime.Object, string, error) {
-				l, err := md.Resource(SecretsGVR).Namespace("").List(ctx, o)
+				l, err := md.Resource(SecretsGVR).Namespace(ns).List(ctx, o)
 				if err != nil {
 					return nil, "", err
 				}
 				return objs(l.Items), l.ResourceVersion, nil
 			},
 			func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {
-				return md.Resource(SecretsGVR).Namespace("").Watch(ctx, o)
+				return md.Resource(SecretsGVR).Namespace(ns).Watch(ctx, o)
 			},
 			convertSecret})
 	}
-	return c
+	return out
 }
 
-// Kinds lists the kinds this collector watches.
+// Kinds lists the sync keys this collector watches: the kind, or
+// "kind/namespace" for a namespace-scoped list/watch.
 func (c *Collector) Kinds() []string {
 	out := make([]string, 0, len(c.specs))
 	for _, s := range c.specs {
-		out = append(out, s.kind)
+		out = append(out, SyncKey(s.kind, s.namespace))
 	}
 	sort.Strings(out)
 	return out
@@ -206,7 +234,7 @@ func (c *Collector) loop(ctx context.Context, s kindSpec) {
 			if ctx.Err() != nil {
 				return
 			}
-			c.gap("list-failed", fmt.Sprintf("list of %s failed (%s); inventory for this kind is incomplete until a list succeeds", s.kind, reasonOf(err)))
+			c.gap("list-failed", fmt.Sprintf("list of %s failed (%s); inventory for this kind is incomplete until a list succeeds", SyncKey(s.kind, s.namespace), reasonOf(err)))
 			sleep(ctx, c.Backoff)
 			continue
 		}
@@ -216,7 +244,7 @@ func (c *Collector) loop(ctx context.Context, s kindSpec) {
 				m[uid] = item
 			}
 		}
-		c.Store.Replace(s.kind, m)
+		c.Store.ReplaceIn(s.kind, s.namespace, m)
 		if !first {
 			c.gap("relist", fmt.Sprintf("%s was relisted; object states between the previous and the new snapshot were not observed", s.kind))
 		}
