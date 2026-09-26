@@ -17,3 +17,7 @@ dist/
 
 sbom/
 .claude/
+# Frontend (services/web)
+node_modules/
+services/web/dist/
+coverage/
