@@ -1,0 +1,48 @@
+# Minimal read-only RBAC for the AFTERLOCK collector.
+#
+# Every rule is list+watch only: the collector lists each kind once and then
+# watches it (see internal/inventory/watch.go). It never issues get, create,
+# update, patch, delete, impersonate, bind or escalate. Each resource below is
+# required because it appears in inventory.json:
+#   pods                         -> inventory.pods (UID, service account, token audiences)
+#   serviceaccounts              -> inventory.service_accounts
+#   roles, clusterroles          -> inventory.roles
+#   rolebindings, clusterrolebindings -> inventory.bindings
+#   validatingadmissionpolicies  -> recorded as explicit "unmodeled" gaps
+#
+# Secrets are NOT included here. Secret metadata is optional; see
+# secret-metadata-rbac.yaml for why it is separate.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: afterlock-collector
+  namespace: afterlock
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: afterlock-collector-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "serviceaccounts"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingadmissionpolicies"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: afterlock-collector-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: afterlock-collector-read
+subjects:
+  - kind: ServiceAccount
+    name: afterlock-collector
+    namespace: afterlock
