@@ -1,0 +1,14 @@
+# Application-integration profile. Requires a Docker daemon.
+# The product never mounts the Docker socket and never reaches the lab cluster.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
