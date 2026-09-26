@@ -3,7 +3,8 @@
 # Services: postgres (storage), migrate (one-shot schema upgrade), api, worker, web (UI).
 services:
   postgres:
-    image: postgres:16
+    # Pinned by multi-arch index digest (resolved 2026-09-26); see docs/security/supply-chain.md.
+    image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
     environment:
       POSTGRES_DB: afterlock
       POSTGRES_USER: afterlock
@@ -16,7 +17,10 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U afterlock -d afterlock"]
+      # TCP, not the unix socket: during first-run init the entrypoint's temporary server
+      # listens only on the socket, and a socket check would report healthy before the
+      # real server (which migrate reaches over TCP) is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U afterlock -d afterlock"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -53,6 +57,11 @@ services:
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
     tmpfs: ["/tmp"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   worker:
     build:
@@ -74,13 +83,21 @@ services:
     build:
       context: services/web
       dockerfile: Dockerfile
-    depends_on: [api]
+    depends_on:
+      api:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8081:8080"
     read_only: true
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
-    tmpfs: ["/tmp"]
+    # nginx writes its pid to /tmp and client/proxy temp files under /var/cache/nginx.
+    tmpfs: ["/tmp", "/var/cache/nginx"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
 volumes:
   pgdata:
