@@ -16,3 +16,4 @@ dist/
 .opencode/
 
 sbom/
+.claude/
