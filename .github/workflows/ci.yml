@@ -1,0 +1,43 @@
+name: portable-checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Untrusted pull requests get read-only permissions and no secrets.
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # TODO(release hardening): pin actions by commit SHA.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Doctor (replay profile)
+        run: python scripts/doctor --profile replay
+      - name: Lint
+        run: ruff check packages services tests datasets benchmarks
+      - name: Type check
+        run: mypy
+      - name: Tests (live-lab tests report as skipped = BLOCKED, never as passed)
+        env:
+          AFTERLOCK_DIFFERENTIAL_EXAMPLES: "300"
+        run: pytest -q -rs
+      - name: Replay bundles reproducible from generator
+        run: |
+          python datasets/generators/build_semantic_cases.py
+          git diff --exit-code -- datasets/replay
+      - name: Benchmark regenerates
+        run: python benchmarks/run.py --repeat 2
