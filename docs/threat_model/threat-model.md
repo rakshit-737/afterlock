@@ -17,7 +17,7 @@
 
 | Assumption | If it fails |
 |---|---|
-| Control-plane behavior matches the profile | Results need revalidation. The profile is marked unverified until lab receipts exist |
+| Control-plane behavior matches the profile | Results need revalidation. Lab receipts cover only the rules named in `docs/semantics/supported.md`, on v1.31.4; the rest of the profile is model-level |
 | No node, host, or control-plane compromise | The attacker may hold capabilities outside the model |
 | Protected targets are declared | Undeclared assets are not analyzed |
 | Unsupported admission and authentication mechanisms are disclosed | Relevant conclusions become `unknown` |
@@ -34,9 +34,9 @@
 | Insecure deserialization | JSON only | implemented |
 | Command injection | Defender actions are a closed vocabulary with unknown fields rejected; the lab uses argv lists, never shell strings | implemented |
 | Authorization bypass (API) | Server-side role checks per cluster; cross-cluster reads return 404 | implemented, tested |
-| Expensive requests | Derivation cap, planner caps, body-size limit | partial (no per-user concurrency limits) |
-| Executor abuse | Lab identity pinned to endpoint, CA digest, namespace UID, and instance id; local endpoint only | written, **not executed** |
-| Stored XSS | No frontend yet. The API returns JSON and text/plain | n/a |
+| Expensive requests | Derivation cap, planner caps, streamed body-size limit, per-principal and global concurrency limits on synchronous verification/planning, bounded in-memory store | partial (limits are per process; no per-principal job quota; synchronous analyze not behind the limiter) |
+| Executor abuse | Lab identity pinned to endpoint, CA digest, namespace UID, and instance id; local endpoint only (URL parsed, review L-1) | implemented; exercised in `live-lab` runs; unit-tested (`tests/unit/test_lab_identity.py`) |
+| Stored XSS | React escaping only (no `innerHTML`), nginx CSP `default-src 'none'`, `script-src 'self'`; the API returns JSON and text/plain | implemented; reviewed (docs/security/review-2026-09-26-adversarial-api.md), no dedicated stored-XSS test |
 | Dependency compromise | Zero runtime dependencies in core; pinned kind/kubectl checksums; SHA-pinned actions; digest-pinned images; CI installs from `uv.lock`; CycloneDX SBOM in CI (docs/security/supply-chain.md) | partial (no provenance/signing; API image build not lockfile-based) |
 
 ## Out of scope for V1
