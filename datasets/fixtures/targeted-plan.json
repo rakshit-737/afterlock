@@ -1,0 +1,19 @@
+[
+  {
+    "kind": "remove_binding",
+    "name": "ci-pod-creator",
+    "namespace": "demo"
+  },
+  {
+    "keep_uids": [
+      "pod-release-0001"
+    ],
+    "kind": "delete_pods_except",
+    "namespace": "demo",
+    "service_account": "release-reader"
+  },
+  {
+    "kind": "rotate_downstream_credential",
+    "service": "canary-service"
+  }
+]
