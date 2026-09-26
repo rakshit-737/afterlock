@@ -1,0 +1,10 @@
+{
+  "case_id": "collector-golden",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:fefa52ca47cca106eb381aa52953da09dbd6567b85dcf87975b1bd6da0de6b1b",
+    "events.jsonl": "sha256:896212794aad6be6cdc5b0edb9382f8bf0e3cb0b2c8f8cc4af99b071689d1c93",
+    "inventory.json": "sha256:a819627665c7972a4c439aa0942f68d7c114fa34afe71b8112336d611dafec4a"
+  },
+  "schema": "afterlock.replay/1"
+}
