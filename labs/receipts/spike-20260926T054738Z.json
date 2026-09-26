@@ -1,0 +1,50 @@
+{
+  "lab": {
+    "server": "https://127.0.0.1:45945",
+    "ca_sha256": "0a9a624b21bd5c2dee00924b5e32a084ee4672f05d62b416fe9961467b917a0a",
+    "kubernetes_version": "v1.31.4",
+    "lab_instance": "ac3912bf4c31506b"
+  },
+  "validation": "lab_confirmed",
+  "receipts": [
+    {
+      "step": "ci-creates-release-reader-pod",
+      "model_prediction": "may_create",
+      "observed_http_status": 201,
+      "agrees": true
+    },
+    {
+      "step": "attacker-reads-secret",
+      "model_prediction": "violated",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "ci-creation-blocked-after-binding-removal",
+      "model_prediction": "blocked",
+      "observed_http_status": 403,
+      "agrees": true,
+      "elapsed_seconds": 0.01
+    },
+    {
+      "step": "residual-token-still-reads-secret",
+      "model_prediction": "violated",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "bound-token-rejected-after-pod-deletion",
+      "model_prediction": "rejected",
+      "observed_http_status": 401,
+      "agrees": true,
+      "pod_uid": "334a6371-f018-487f-bbfc-dedb59eadb37",
+      "elapsed_seconds_after_deletion_complete": 0.01
+    },
+    {
+      "step": "negative-control-admission-denies",
+      "model_prediction": "satisfied_within_scope",
+      "observed_http_status": 422,
+      "agrees": true
+    }
+  ]
+}
