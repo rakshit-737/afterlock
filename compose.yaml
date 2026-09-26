@@ -1,13 +1,69 @@
 # Application-integration profile. Requires a Docker daemon.
 # The product never mounts the Docker socket and never reaches the lab cluster.
+# Services: postgres (storage), migrate (one-shot schema upgrade), api, worker, web (UI).
 services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: afterlock
+      POSTGRES_USER: afterlock
+      POSTGRES_PASSWORD: ${AFTERLOCK_POSTGRES_PASSWORD:?set AFTERLOCK_POSTGRES_PASSWORD in .env}
+    user: "999:999"  # the image's unprivileged postgres user
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp", "/var/run/postgresql"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afterlock -d afterlock"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    # Not published to the host; only the api/worker/migrate containers reach it.
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["python", "-m", "afterlock_api.migrate"]
+    environment:
+      AFTERLOCK_DATABASE_URL: postgresql://afterlock:${AFTERLOCK_POSTGRES_PASSWORD}@postgres:5432/afterlock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+
   api:
     build:
       context: .
       dockerfile: services/api/Dockerfile
     env_file: .env
+    environment:
+      AFTERLOCK_DATABASE_URL: postgresql://afterlock:${AFTERLOCK_POSTGRES_PASSWORD}@postgres:5432/afterlock
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8080:8080"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["python", "-m", "afterlock_worker"]
+    environment:
+      AFTERLOCK_DATABASE_URL: postgresql://afterlock:${AFTERLOCK_POSTGRES_PASSWORD}@postgres:5432/afterlock
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     read_only: true
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
@@ -25,3 +81,6 @@ services:
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
     tmpfs: ["/tmp"]
+
+volumes:
+  pgdata:
