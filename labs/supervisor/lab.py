@@ -7,10 +7,17 @@ Semantic spike (design prompt 05): verify against a real API server that
   3. removing the CI RoleBinding blocks new Pod creation,
   4. the previously obtained token STILL reads the Secret (residual access),
   5. deleting the bound Pod makes the API reject that token (timed, not assumed),
-  6. negative control: an admission policy denies the CI identity the release-reader SA.
+  6. negative control: an admission policy denies the CI identity the release-reader SA,
+and, against the synthetic canary relying service (S-SEC-2..4), that
+  7. the Secret value the attacker copied authenticates to the canary,
+  8. it still does after Kubernetes containment (binding removed, Pod deleted),
+  9. rotation at the canary is acknowledged (new value accepted),
+ 10. the copied value is then rejected, and
+ 11. the legitimate workload reads the rotated value and still uses the service.
 
 Every observation is compared with the engine's prediction for the matching
-replay case and written to labs/receipts/. Tokens stay in memory.
+replay case and written to labs/receipts/. Tokens and credential values stay in
+memory and never appear in receipts or host command lines.
 
 Requires: kind, kubectl, a disposable Docker-capable Linux host.
 """
@@ -20,6 +27,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import secrets
 import ssl
 import subprocess
@@ -37,6 +45,8 @@ CLUSTER = "afterlock-lab"
 CONTEXT = f"kind-{CLUSTER}"
 NS = "demo"
 POLL_SECONDS = 120
+ROTATION_POLL_SECONDS = 180  # mounted Secret volumes refresh on the kubelet sync period
+CANARY_URL = "http://canary.canary.svc:8080/use"
 
 sys.path.insert(0, str(ROOT / "packages"))
 
@@ -113,6 +123,42 @@ class Api:
         except urllib.error.HTTPError as err:
             return int(err.code)
 
+    def read_secret_value(self, token: str, path: str) -> tuple[int, str | None]:
+        """The one place a response body is read: the credential an actor copies.
+
+        The value is returned to the caller's memory only; callers must never log
+        or persist it.
+        """
+        req = urllib.request.Request(self.server + path, headers={"Authorization": f"Bearer {token}"})
+        try:
+            with urllib.request.urlopen(req, context=self.ctx, timeout=15) as resp:
+                data = json.loads(resp.read())["data"]["value"]
+                return int(resp.status), base64.b64decode(data).decode()
+        except urllib.error.HTTPError as err:
+            return int(err.code), None
+
+
+def canary_use(credential: str) -> int:
+    """Offer a credential to the canary from the probe Pod; return the HTTP status (0 if unreachable).
+
+    The value travels on stdin, so it is absent from every host command line.
+    """
+    script = ('read -r c; wget -q -O /dev/null --header "X-Canary-Credential: $c" '
+              f'{CANARY_URL} 2>&1; echo "rc=$?"')
+    out = kubectl("exec", "-i", "-n", NS, "canary-probe", "--", "sh", "-c", script, stdin=(credential + "\n").encode())
+    if out.rstrip().endswith("rc=0"):
+        return 200
+    m = re.search(r"HTTP/1\.[01] (\d{3})", out)
+    return int(m.group(1)) if m else 0
+
+
+def set_credential(value: str) -> None:
+    """Write one synthetic value to both the source Secret and the canary's accepted Secret."""
+    for ns, name in ((NS, "release-credential"), ("canary", "canary-accepted")):
+        manifest = kubectl("create", "secret", "generic", name, "-n", ns, "--from-file=value=/dev/stdin",
+                           "--dry-run=client", "-o", "json", stdin=value.encode())
+        kubectl("apply", "-f", "-", stdin=manifest.encode())
+
 
 def attacker_pod(name: str, sa: str) -> dict[str, Any]:
     return {
@@ -145,6 +191,15 @@ def predict(case: str, objective: str) -> str:
     return {o["id"]: o["status"] for o in b["objectives"]}[objective]
 
 
+def predict_legit(case: str, op: str) -> str:
+    from afterlock.evidence import ReplayBundle, project
+    from afterlock.model import parse_analysis_input
+    from afterlock.results import analyze
+
+    b = analyze(parse_analysis_input(project(ReplayBundle.load(ROOT / "datasets" / "replay" / case))[0]))
+    return "preserved" if {o["id"]: o["preserved"] for o in b["legitimate_operations"]}[op] else "broken"
+
+
 # ---------------------------------------------------------------- commands
 
 
@@ -155,9 +210,12 @@ def cmd_create() -> None:
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "residual-token.yaml"))
     instance = secrets.token_hex(8)
     kubectl("label", "namespace", NS, f"afterlock.dev/lab-instance={instance}")
+    kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "canary-service.yaml"))
     fake = "synthetic-" + secrets.token_hex(12)
-    kubectl("create", "secret", "generic", "release-credential", "-n", NS, "--from-file=value=/dev/stdin", stdin=fake.encode())
+    set_credential(fake)
     del fake
+    for ns, pod in (("canary", "canary"), (NS, "canary-probe"), (NS, "release-app")):
+        kubectl("wait", "--for=condition=Ready", f"pod/{pod}", "-n", ns, "--timeout=180s")
     STATE.parent.mkdir(parents=True, exist_ok=True)
     ident = live_identity()
     ident["kubernetes_version"] = json.loads(kubectl("version", "-o", "json"))["serverVersion"]["gitVersion"]
@@ -174,14 +232,19 @@ def cmd_spike() -> None:
 
     def record(step: str, predicted: str, observed: int, expect_ok: bool, **extra: Any) -> None:
         ok = 200 <= observed < 300
+        agrees = observed != 0 and ok == expect_ok  # 0 = no answer, never evidence of rejection
         receipts.append({"step": step, "model_prediction": predicted, "observed_http_status": observed,
-                         "agrees": ok == expect_ok, **extra})
-        print(f"  {step}: HTTP {observed} ({'agrees' if ok == expect_ok else 'CONTRADICTS'} model)")
+                         "agrees": agrees, **extra})
+        print(f"  {step}: HTTP {observed} ({'agrees' if agrees else 'CONTRADICTS'} model)")
 
     ci = kubectl("create", "token", "ci-runner", "-n", NS, "--duration=20m").strip()  # seeded compromise
     record("ci-creates-release-reader-pod", "may_create", api.request(ci, "POST", pods_path, attacker_pod("diagnostic-job", "release-reader")), True)
     stolen = pod_token("diagnostic-job")
-    record("attacker-reads-secret", "violated", api.request(stolen, "GET", secret_path), True)
+    status, copied = api.read_secret_value(stolen, secret_path)
+    record("attacker-reads-secret", "violated", status, True)
+    if copied is None:
+        raise LabError("attacker read failed; downstream steps cannot run")
+    record("copied-credential-accepted-by-canary", predict("residual-token", "protect-canary"), canary_use(copied), True)
 
     kubectl("delete", "rolebinding", "ci-pod-creator", "-n", NS)
     t0 = time.monotonic()
@@ -205,6 +268,30 @@ def cmd_spike() -> None:
     record("bound-token-rejected-after-pod-deletion", "rejected", status, False,
            pod_uid=uid, elapsed_seconds_after_deletion_complete=round(time.monotonic() - t0, 2))
     del stolen
+    record("copied-credential-survives-kubernetes-containment", predict("copied-downstream", "protect-canary"),
+           canary_use(copied), True)
+
+    rotated = "synthetic-" + secrets.token_hex(12)
+    set_credential(rotated)
+    t0 = time.monotonic()
+    status = old_status = 0
+    while time.monotonic() - t0 < ROTATION_POLL_SECONDS:
+        status, old_status = canary_use(rotated), canary_use(copied)
+        if status == 200 and old_status == 401:
+            break
+        time.sleep(2)
+    record("rotation-acknowledged-by-canary", "acknowledged", status, True,
+           elapsed_seconds=round(time.monotonic() - t0, 2))
+    del rotated
+    record("copied-credential-rejected-after-rotation", predict("targeted-containment", "protect-canary"), old_status, False)
+    del copied
+
+    legit = kubectl("create", "token", "release-reader", "-n", NS, "--duration=10m").strip()
+    status, current = api.read_secret_value(legit, secret_path)
+    del legit
+    record("legitimate-workload-uses-rotated-credential", predict_legit("targeted-containment", "release-canary"),
+           canary_use(current) if status == 200 and current is not None else status, True)
+    del current
 
     kubectl("create", "rolebinding", "ci-pod-creator", "-n", NS, "--role=pod-creator", f"--serviceaccount={NS}:ci-runner")
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "admission-restrict.yaml"))
