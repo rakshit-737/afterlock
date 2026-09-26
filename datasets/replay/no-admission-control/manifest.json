@@ -1,0 +1,10 @@
+{
+  "case_id": "no-admission-control",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:91a8fd9e9c22376e35c6a75fbef1f1db882abc5321f5dda7acc750a6a4a9f07e",
+    "events.jsonl": "sha256:b7bb412509ea8aabbc367b8e7cd0392c59312fa9605ef7ca793639b86fbcd0e4",
+    "inventory.json": "sha256:4209a65841d73358a1278f069db1e1e460bcc99ba79e64d85a0df996c5654da7"
+  },
+  "schema": "afterlock.replay/1"
+}
