@@ -1,0 +1,206 @@
+{
+  "lab": {
+    "server": "https://127.0.0.1:44141",
+    "ca_sha256": "bf424cc13e236c6c7ed0f2dfe7e6a9beb2e7339cce2b0a62c98c89720f5c26b0",
+    "kubernetes_version": "v1.31.4",
+    "lab_instance": "738dbe829b255848"
+  },
+  "run": {
+    "index": 1,
+    "of": 3,
+    "reset": {
+      "elapsed_seconds": 12.82,
+      "credential_seed_elapsed_seconds": 10.57
+    }
+  },
+  "validation": "lab_confirmed",
+  "receipts": [
+    {
+      "step": "ci-creates-release-reader-pod",
+      "model_prediction": "may_create",
+      "expect": "answer_ok",
+      "observed_http_status": 201,
+      "agrees": true
+    },
+    {
+      "step": "attacker-reads-secret",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true
+    },
+    {
+      "step": "copied-credential-accepted-by-canary",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "residual-token",
+      "objective": "protect-canary"
+    },
+    {
+      "step": "isolation-control-canary-answers-demo",
+      "model_prediction": "reachable",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "probe_reason": "answered"
+    },
+    {
+      "step": "isolation-outsider-cannot-reach-canary",
+      "model_prediction": "unreachable",
+      "expect": "no_answer",
+      "observed_http_status": 0,
+      "agrees": true,
+      "probe_reason": "timeout"
+    },
+    {
+      "step": "isolation-control-outsider-answers-demo",
+      "model_prediction": "reachable",
+      "expect": "answer_denied",
+      "observed_http_status": 404,
+      "agrees": true,
+      "probe_reason": "answered"
+    },
+    {
+      "step": "isolation-attacker-egress-to-outsider-denied",
+      "model_prediction": "unreachable",
+      "expect": "no_answer",
+      "observed_http_status": 0,
+      "agrees": true,
+      "probe_reason": "timeout"
+    },
+    {
+      "step": "ci-creation-blocked-after-binding-removal",
+      "model_prediction": "blocked",
+      "expect": "answer_denied",
+      "observed_http_status": 403,
+      "agrees": true,
+      "elapsed_seconds": 0.0
+    },
+    {
+      "step": "residual-token-still-reads-secret",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "residual-token",
+      "objective": "protect-secret"
+    },
+    {
+      "step": "bound-token-rejected-after-pod-deletion",
+      "model_prediction": "rejected",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "pod_uid": "f94b6fd4-6a86-4a86-9971-2f38c383a55b",
+      "elapsed_seconds_after_deletion_complete": 0.01
+    },
+    {
+      "step": "copied-credential-survives-kubernetes-containment",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "copied-downstream",
+      "objective": "protect-canary"
+    },
+    {
+      "step": "rotation-acknowledged-by-canary",
+      "model_prediction": "acknowledged",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "elapsed_seconds": 8.99,
+      "attempts": [
+        {
+          "new_status": 200,
+          "old_status": 401,
+          "acknowledged_seconds": 8.99,
+          "window": {
+            "probes": 6,
+            "first_probe_seconds": 0.09,
+            "first_probe_status": 200,
+            "last_accepted_seconds": 6.81,
+            "first_refused_seconds": 8.99,
+            "reaccepted_after_refusal": false,
+            "window_observed": true
+          },
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "step": "copied-credential-rejected-after-rotation",
+      "model_prediction": "satisfied_within_scope",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "replay_case": "targeted-containment",
+      "objective": "protect-canary"
+    },
+    {
+      "step": "s-sec-5-old-credential-accepted-right-after-rotation",
+      "model_prediction": "violated",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "elapsed_seconds_since_rotation": 0.09,
+      "rotation_propagation_seconds": 9,
+      "acknowledged_seconds": 8.99,
+      "window": {
+        "probes": 6,
+        "first_probe_seconds": 0.09,
+        "first_probe_status": 200,
+        "last_accepted_seconds": 6.81,
+        "first_refused_seconds": 8.99,
+        "reaccepted_after_refusal": false,
+        "window_observed": true
+      },
+      "parameter_source": "measured in this run: ceil(acknowledgement time)",
+      "analysis_input": "targeted-containment with canary-service rotation_propagation_seconds=d",
+      "old_credential": "copied"
+    },
+    {
+      "step": "s-sec-5-old-credential-rejected-after-propagation-wait",
+      "model_prediction": "satisfied_within_scope",
+      "expect": "answer_denied",
+      "observed_http_status": 401,
+      "agrees": true,
+      "elapsed_seconds_since_rotation": 11.1,
+      "wait_seconds": 9,
+      "rotation_propagation_seconds": 9,
+      "acknowledged_seconds": 8.99,
+      "window": {
+        "probes": 6,
+        "first_probe_seconds": 0.09,
+        "first_probe_status": 200,
+        "last_accepted_seconds": 6.81,
+        "first_refused_seconds": 8.99,
+        "reaccepted_after_refusal": false,
+        "window_observed": true
+      },
+      "parameter_source": "measured in this run: ceil(acknowledgement time)",
+      "analysis_input": "targeted-containment with canary-service rotation_propagation_seconds=d",
+      "old_credential": "copied"
+    },
+    {
+      "step": "legitimate-workload-uses-rotated-credential",
+      "model_prediction": "preserved",
+      "expect": "answer_ok",
+      "observed_http_status": 200,
+      "agrees": true,
+      "replay_case": "targeted-containment",
+      "objective": "legitimate:release-canary"
+    },
+    {
+      "step": "negative-control-admission-denies",
+      "model_prediction": "satisfied_within_scope",
+      "expect": "answer_denied",
+      "observed_http_status": 422,
+      "agrees": true,
+      "replay_case": "admission-denied",
+      "objective": "protect-secret"
+    }
+  ]
+}
