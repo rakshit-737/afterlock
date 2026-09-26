@@ -1,0 +1,29 @@
+# kube-apiserver audit policy for the AFTERLOCK collector.
+#
+# Level Metadata records who did what to which object and the response code,
+# and never includes request or response bodies (so no Secret data and no
+# TokenRequest tokens). The collector additionally drops bodies if a
+# RequestResponse policy is used by mistake, and counts them
+# (afterlock_collector_audit_bodies_dropped_total) so the misconfiguration is visible.
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages:
+  - RequestReceived
+  - ResponseStarted
+rules:
+  # Never record bodies for credential-bearing resources, even if a later
+  # rule is edited to a higher level.
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets", "serviceaccounts/token"]
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["pods", "pods/exec", "pods/attach", "serviceaccounts"]
+      - group: "apps"
+      - group: "batch"
+      - group: "rbac.authorization.k8s.io"
+      - group: "admissionregistration.k8s.io"
+  # Everything else is not used by the supported semantics.
+  - level: None
