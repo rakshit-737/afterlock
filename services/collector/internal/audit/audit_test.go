@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -138,5 +139,31 @@ func TestAuditSinceExcludesEarlierEventsWithOneGap(t *testing.T) {
 	}
 	if bytes.Count(raw, []byte(`"gap_kind":"audit-before-window"`)) != 1 || !bytes.Contains(raw, []byte("2 audit events before")) {
 		t.Fatalf("missing window gap: %s", raw)
+	}
+}
+
+// Phase 9 review: kube-apiserver takes a client-supplied Audit-ID header as the
+// event's auditID. Deduplicating on auditID alone let an attacker reuse an
+// earlier request's ID so its own request was dropped as a "duplicate" (no gap).
+// Only a byte-identical redelivery is a duplicate.
+func TestReusedAuditIDWithDifferentContentIsKept(t *testing.T) {
+	in, path := newIngester(t)
+	ev := func(verb, resource, name string, code int) string {
+		return `{"kind":"Event","apiVersion":"audit.k8s.io/v1","auditID":"chosen-by-client","stage":"ResponseComplete",` +
+			`"verb":"` + verb + `","user":{"username":"system:serviceaccount:demo:release-reader","uid":"sa-2"},` +
+			`"objectRef":{"resource":"` + resource + `","namespace":"demo","name":"` + name + `"},"responseStatus":{"code":` +
+			strconv.Itoa(code) + `},"stageTimestamp":"2026-09-26T10:06:00Z"}` + "\n"
+	}
+	benign := ev("list", "configmaps", "", 200)
+	log := benign + benign + ev("get", "secrets", "release-credential", 200)
+	if err := in.IngestLog(strings.NewReader(log), "audit.log"); err != nil {
+		t.Fatal(err)
+	}
+	if in.Counters.Accepted.Load() != 2 || in.Counters.Duplicates.Load() != 1 {
+		t.Fatalf("accepted=%d dup=%d", in.Counters.Accepted.Load(), in.Counters.Duplicates.Load())
+	}
+	raw, _ := os.ReadFile(path)
+	if !bytes.Contains(raw, []byte("release-credential")) {
+		t.Fatal("secret read with a reused auditID was dropped")
 	}
 }
