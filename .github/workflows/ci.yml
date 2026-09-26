@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -168,3 +168,46 @@ jobs:
           GOTOOLCHAIN: local
           CGO_ENABLED: "0"
         run: go build -trimpath -o /tmp/afterlock-collector ./cmd/afterlock-collector
+  containers:
+    # Build every product image and smoke-test the compose stack end to end.
+    # Throwaway credentials generated in the job; .env is never committed or uploaded.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Docker versions
+        run: docker version && docker compose version
+      - name: Generate throwaway .env
+        run: |
+          umask 077
+          token=$(python3 -c "import secrets;print(secrets.token_urlsafe(32))")
+          password=$(python3 -c "import secrets;print(secrets.token_urlsafe(32))")
+          echo "::add-mask::$token"
+          echo "::add-mask::$password"
+          printf 'AFTERLOCK_API_TOKENS=%s:analyst:lab-local\nAFTERLOCK_POSTGRES_PASSWORD=%s\n' "$token" "$password" > .env
+          echo "AFTERLOCK_SMOKE_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Build api/worker/migrate and web images
+        run: docker compose build
+      - name: Build collector image
+        run: docker build -t afterlock-collector:ci services/collector
+      - name: Collector image runs as non-root
+        run: |
+          user=$(docker image inspect afterlock-collector:ci --format '{{.Config.User}}')
+          echo "collector user: $user"
+          test "$user" = "65532:65532"
+      - name: Start stack
+        run: docker compose up -d --wait --wait-timeout 300 postgres api worker web
+      - name: Smoke test
+        run: python3 scripts/compose-smoke
+      - name: Compose state and logs (on failure)
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --timestamps
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose down -v --remove-orphans || true
+          rm -f .env
