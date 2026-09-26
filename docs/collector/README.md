@@ -163,10 +163,30 @@ Reimplementing these on `net/http` would be more code to audit, not less. No
 informer/cache machinery is used, because informers relist silently and would
 hide exactly the gaps the collector must record.
 
+## Live lab
+
+`scripts/lab collect` (see [docs/tutorials/live-lab.md](../tutorials/live-lab.md#collector-run-collect))
+runs the collector on the lab host against the kind cluster with a token for the
+`afterlock-collector` ServiceAccount (this directory's `rbac.yaml`, plus the
+Secret-metadata ClusterRole bound only in `demo`), feeds it the API server's audit log
+file (`labs/kind/cluster.yaml` enables it with `deploy/audit-policy.yaml`), kills and
+restarts it mid-spike, and checks the resulting bundle: it validates, contains the
+attacker Pod creation and the RoleBinding deletion, reaches the same conclusion as the
+hand-authored `residual-token` case, records the restarts as gaps, and contains no
+credential value the supervisor holds. The pure checks are in
+`labs/supervisor/collected.py` (`tests/unit/test_collected_bundle.py`).
+
+The audit log is ingested once at startup (`--audit-log` does not follow the file), so the
+lab starts a final collector process after the attack to read it; the webhook backend is
+not used in the lab.
+
 ## Not verified
 
-* No run against a real API server (kind or otherwise): watch expiry, bookmark
-  handling, metadata-client behaviour and webhook delivery from a real
-  kube-apiserver are exercised only with fakes.
+* **Wired into the live lab but not yet run**: `scripts/lab collect` and the
+  `live-lab` workflow steps are written, not executed. Until a `collect-*.json` receipt
+  exists, there is no run against a real API server: watch expiry, bookmark
+  handling, metadata-client behaviour, audit `objectRef` contents for Pod creates, and
+  webhook delivery from a real kube-apiserver are exercised only with fakes.
+* Watch expiry (410) is not forced in the lab; the fault injection is a process kill/restart.
 * The container image has not been built in this change.
 * Correlation window and relist backoff are fixed defaults, not tuned.
