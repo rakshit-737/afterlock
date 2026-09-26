@@ -1,10 +1,10 @@
 # Verification record
 
-Environment: Linux x86_64 cloud container, Python 3.11.15, Go 1.24.7, Node 22.22.2.
+Original local environment (historical; current evidence is the CI and live-lab runs below): Linux x86_64 cloud container, Python 3.11.15, Go 1.24.7, Node 22.22.2.
 **No Docker daemon, kind, or kubectl** (`scripts/doctor --profile live-lab` → not available).
 Date: 2026-09-25, commit following `e9a07bc`.
 
-## Executed
+## Executed (2026-09-25, historical counts)
 
 | Check | Command | Result |
 |---|---|---|
@@ -109,10 +109,30 @@ clean over every produced file. Same run: spike 3 x 15 steps all agree. Fixes th
 namespace-scoped Secret listing (48 forbidden lists before), `--audit-since` window (stale Pod
 creates from earlier runs), restart detection from spool existence.
 
+## Current evidence (2026-09-26)
+
+- CI run [36244804735](https://github.com/rakshit-737/afterlock/actions/runs/36244804735): all
+  six jobs pass. portable: 359 passed, 20 skipped (BLOCKED: PostgreSQL / live lab), mypy 15
+  files; postgres: 41 passed; web: 46 vitest + 6 Playwright (axe zero serious/critical);
+  collector: vet, race tests, build; containers: build + compose smoke; sbom.
+- Live lab run [36244828581](https://github.com/rakshit-737/afterlock/actions/runs/36244828581)
+  (after the adversarial engine fixes): spike 3 x 17 steps all agree, including `s-sec-5-*`
+  (old credential accepted ~0.1 s after rotation; refused at 5.13 / 16.12 / 18.14 s);
+  collector 28/28 checks with both windows (`collect-20260926T132806Z.json`).
+- Fresh-clone reproduction (Windows 11, uv 0.11.32, CPython 3.12, commit `b574b8f`):
+  `git -c core.autocrlf=false clone`, `uv sync --frozen --extra dev --extra postgres --extra oidc --extra api`,
+  ruff pass, mypy pass (15 files), full pytest 358 passed, 20 skipped (BLOCKED), 1 failed
+  (`test_symlinked_file_rejected`: Windows symlink privilege, host limitation).
+
 ## Not executed (these are not passes)
 
 | Check | Why | How to run |
 |---|---|---|
-| Container build / compose | no Docker daemon | `docker compose up --build` |
-| Collector against a live API server | not yet wired into the lab | planned lab step |
-| Frontend in a browser / Playwright | no end-to-end suite | planned |
+| kube-apiserver audit webhook backend | lab relays the log file to the receiver instead | configure `--audit-webhook-config-file` in the kind patch |
+| Watch-expiry (410) fault | not injected in the lab | planned lab step |
+| Held-out templates in the lab | only reference-labelled | planned |
+| list/watch Secret read lab step (A-3) | fixed in both checkers, never observed live | planned spike step |
+| Other Kubernetes versions / multi-node | single kind v1.31.4 node | version matrix in `live-lab` |
+| OIDC against a real IdP | local keys and fake JWKS only | staging IdP |
+| Scaling benchmark (1,000 entities) | not written | planned |
+| Third-party reproduction | none yet | external reviewer |
