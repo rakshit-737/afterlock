@@ -315,11 +315,12 @@ class _Run:
                     changed |= self._add(att, eph, d)
             for f in sorted(k for k in att.facts if k[0] == "possesses_downstream"):
                 target = env.services.get(f[1])
-                if target is not None and str(target.accepted_version) == f[2]:
-                    d = Derivation(
-                        ("can_use_downstream", target.name), "R-USE-DOWNSTREAM", interval, (f,),
-                        ({"check": "service_accepts", "service": target.name, "version": target.accepted_version},), status,
-                    )
+                if target is not None and target.accepts(int(f[2]), env.time):
+                    cond: dict[str, Any] = {"check": "service_accepts", "service": target.name, "version": int(f[2])}
+                    if int(f[2]) != target.accepted_version:
+                        cond["time"] = env.time
+                        cond["detail"] = "previous version still accepted while rotation propagates (S-SEC-5)"
+                    d = Derivation(("can_use_downstream", target.name), "R-USE-DOWNSTREAM", interval, (f,), (cond,), status)
                     changed |= self._add(att, eph, d)
             if not changed:
                 return eph
