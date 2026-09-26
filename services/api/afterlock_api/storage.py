@@ -27,7 +27,8 @@ Job state machine::
     queued --(cancel)--> cancelled;  leased/running --(cancel)--> cancel_requested, worker acknowledges
 
 Publication invariant: a result is written only inside the transaction that (a) locks the job
-row, (b) confirms the caller still holds an unexpired lease and cancellation was not requested,
+row, (b) confirms the caller still holds an unexpired lease (same owner *and* attempt, so a
+stale holder re-claimed under its own name is fenced out) and cancellation was not requested,
 and (c) confirms the job's manifest and case rows are committed. The ``results.job_id`` unique
 constraint makes a duplicate completion a no-op.
 """
@@ -294,7 +295,7 @@ class MemoryStorage:
     def _held(self, lease: Lease) -> dict[str, Any] | None:
         j = self.jobs.get(lease.job_id)
         if (j is None or j["cluster_id"] != lease.cluster_id or j["state"] not in ("leased", "running")
-                or j["lease_owner"] != lease.owner or j["lease_expires_at"] <= self.clock()):
+                or j["lease_owner"] != lease.owner or j["attempts"] != lease.attempt or j["lease_expires_at"] <= self.clock()):
             return None
         return j
 
@@ -537,9 +538,10 @@ class PostgresStorage:
             row = conn.execute(
                 "UPDATE jobs SET heartbeat_at = now(), lease_expires_at = now() + make_interval(secs => %s), updated_at = now(),"
                 " state = CASE WHEN %s THEN 'running' ELSE state END"
-                " WHERE job_id = %s AND cluster_id = %s AND lease_owner = %s AND state IN ('leased', 'running') AND lease_expires_at > now()"
+                " WHERE job_id = %s AND cluster_id = %s AND lease_owner = %s AND attempts = %s"
+                " AND state IN ('leased', 'running') AND lease_expires_at > now()"
                 " RETURNING cancel_requested",
-                (float(lease_seconds), running, lease.job_id, lease.cluster_id, lease.owner),
+                (float(lease_seconds), running, lease.job_id, lease.cluster_id, lease.owner, lease.attempt),
             ).fetchone()
         if row is None:
             return "lost"
@@ -557,10 +559,10 @@ class PostgresStorage:
             " FROM jobs j"
             " JOIN analysis_manifests m ON m.manifest_id = j.manifest_id AND m.cluster_id = j.cluster_id"
             " JOIN cases c ON c.case_id = m.case_id AND c.cluster_id = m.cluster_id"
-            " WHERE j.job_id = %s AND j.cluster_id = %s AND j.lease_owner = %s"
+            " WHERE j.job_id = %s AND j.cluster_id = %s AND j.lease_owner = %s AND j.attempts = %s"
             " AND j.state IN ('leased', 'running') AND j.lease_expires_at > now()"
             " FOR UPDATE OF j",
-            (lease.job_id, lease.cluster_id, lease.owner),
+            (lease.job_id, lease.cluster_id, lease.owner, lease.attempt),
         ).fetchone()
         return dict(row) if row else None
 
