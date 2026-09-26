@@ -1,0 +1,34 @@
+{
+ "witnesses": {
+  "w-protect-canary": {
+   "valid": true,
+   "problems": []
+  },
+  "w-protect-secret": {
+   "valid": true,
+   "problems": []
+  }
+ },
+ "reference_exploration": {
+  "views": {
+   "evidence_supported": {
+    "reachable_objectives": [
+     "protect-canary",
+     "protect-secret"
+    ],
+    "states": 660,
+    "complete": true,
+    "unknown": []
+   },
+   "conservative_possible": {
+    "reachable_objectives": [
+     "protect-canary",
+     "protect-secret"
+    ],
+    "states": 660,
+    "complete": true,
+    "unknown": []
+   }
+  }
+ }
+}
