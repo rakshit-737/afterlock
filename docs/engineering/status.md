@@ -1,6 +1,10 @@
 # Engineering status
 
-_Last updated: 2026-09-26 (second parallel round: containers, collector in lab, SSE/OIDC, e2e, held-out set, S-SEC-5; version 0.1.0)._
+_Last updated: 2026-09-26 (after adversarial reviews, S-SEC-5 lab receipt, collector second
+window, and the phase 12 final audit; version 0.1.0, no tag)._
+
+Maturity: **research-grade, not production-ready.** See `docs/engineering/final-audit.md` for
+the acceptance matrix, risk register (R1-R23) and verdict.
 
 ## Milestone map (phases from docs/research/original-design.md)
 
@@ -8,34 +12,40 @@ _Last updated: 2026-09-26 (second parallel round: containers, collector in lab, 
 |---|---|---|
 | 0: Research and architecture | done | AGENTS.md, architecture, semantics, threat model, claims, ADRs 0001–0004 |
 | 1: Core engine | done | Typed model, production engine, independent reference checker |
-| 2: Data/telemetry | mostly done | Replay bundles, validation, dedup, gaps, redaction. Go collector with read-only RBAC, namespace-scoped Secret metadata, audit ingestion with an evidence window, gap records, spool. **Live lab (`lab_confirmed`):** from evidence the collector gathered on a real cluster, the engine concludes `residual_path`, matching the hand-authored case; injected restarts are recorded as gaps; no credential material in any output. **Missing:** audit webhook path and watch-expiry fault in the lab; evidence/cursor tables in PostgreSQL |
+| 2: Data/telemetry | mostly done | Replay bundles, validation, dedup, gaps, redaction (also inventory/case files, encoded tokens). Go collector: read-only RBAC, namespace-scoped Secret metadata, audit ingestion with evidence window, content-hashed dedup, gap records, spool. **Lab-confirmed** for residual-token and targeted-containment from collected evidence; webhook receiver exercised through the supervisor relay. **Missing:** kube-apiserver's own webhook backend, watch-expiry fault, evidence/cursor tables in PostgreSQL |
 | 3: Security intelligence | done (MVP scope) | Provenance hyperedges, two epistemic views, interleaving, planner |
-| 4: Backend | mostly done | Bearer and optional OIDC auth (RS256/ES256), roles, per-cluster scoping; PostgreSQL storage with migrations 0001–0003 (case ids unique per cluster); leased worker; async jobs; SSE job progress carrying the manifest version; streamed body limit, bounded in-memory store, verification/plan concurrency limits, API docs off by default. **Missing:** retention job, replay export from the DB, audit logging, OIDC against a real identity provider |
-| 5: Frontend | mostly done | `services/web`: case upload, analysis via background jobs (polling, cancel), results, provenance graph with evidence drawer, credential-lifecycle view, verification, plans. Playwright end-to-end against the real API passes in CI, including axe with zero serious/critical violations in light and dark. **Missing:** SSE consumption, OpenAPI-generated types |
-| 6: Demo laboratory | done (spike scope) | Canary relying service, Calico-enforced NetworkPolicies with isolation steps, `lab reset`, `spike --repeat N`. 3 repeated runs x 15 steps all agree with the model (receipts in `labs/receipts/`) |
-| 7: Detection/evaluation | partial | 16 hand-authored cases, lab-derived labels, and 44 held-out cases from 5 seeded templates labelled only by the reference checker (`datasets/heldout/`). **Missing:** held-out templates executed in the lab |
-| 8: Advanced capabilities | started | S-SEC-5: optional per-service rotation propagation window, honoured by engine, reference checker and planner. **Missing:** a lab receipt at t+d; other items |
-| 9: Hardening | partial | Actions pinned by SHA, all Dockerfile/compose images by digest (Calico by manifest SHA-256 only), lockfile installs, SBOM, Dependabot. Review findings 3–6, 8 and the case-id disclosure fixed. **Missing:** full adversarial review, provenance/signing, uvicorn not in the lockfile |
-| 10: Benchmarks | partial | Hand-authored, lab-derived and held-out labels reported separately. Held-out engine-vs-reference agreement 44/44; committed reports hold no timings |
-| 11: Documentation | partial | README, CLI/API/semantics/collector/frontend docs. Not yet reproduced in a fresh environment by a third party |
-| 12: Final audit | not started | |
+| 4: Backend | mostly done | Static and OIDC auth, per-cluster scoping, PostgreSQL (migrations 0001–0003), leased worker with attempt-fenced leases, async jobs, SSE, limits, docs off by default. **Missing:** retention job, DB replay export, audit logging, OIDC against a real IdP |
+| 5: Frontend | mostly done | Jobs, provenance graph, evidence drawer, credential lifecycle; Playwright + axe in CI. **Missing:** SSE consumption, OpenAPI-generated types |
+| 6: Demo laboratory | done (spike scope) | Canary, Calico isolation, reset, repeat. 3 x 17 steps agree (latest `spike-summary-20260926T132141Z.json`, run 36244828581) |
+| 7: Detection/evaluation | partial | Hand-authored, lab-derived (14 receipts) and 44 held-out cases. **Missing:** held-out templates run in the lab |
+| 8: Advanced capabilities | started | S-SEC-5 rotation propagation window, lab steps agree 3/3 (`d` measured in the same run). Other items not started |
+| 9: Hardening | mostly done | Adversarial reviews of API side (`review-2026-09-26-adversarial-api.md`, 2 Medium fixed) and engine side (`...-adversarial-engine.md`, 12 fixed incl. 4 High false-containment). SHA/digest pins, lockfile installs, SBOM, Dependabot. **Missing:** API image built from the lockfile, provenance/signing |
+| 10: Benchmarks | partial | Hand-authored, lab-derived and held-out labels reported separately (held-out 44/44); report regenerated in the final audit. No confidence intervals or scaling benchmark |
+| 11: Documentation | mostly done | Docs made consistent by the final audit; portable checks reproduced from a fresh clone. Not yet reproduced by a third party |
+| 12: Final audit | done | `docs/engineering/final-audit.md`; release blockers listed there; no tag |
 
 ## Known failures and open risks
 
-1. **Collector coverage is one scenario.** The collected-evidence conclusion is lab-confirmed
-   for residual-token only; three bugs were found and fixed getting there (repeated token use
-   in `project()`, cluster-wide Secret listing under a namespace grant, restart detection on an
-   empty spool).
-2. **Live validation covers one version.** Kubernetes v1.31.4 on an idle kind cluster: 15/15
-   spike steps agree across 3 runs. Other rules and versions remain model-level.
-3. **Propagation.** Rotation took 2.4–54.7 s in the lab. The model can now represent it
-   (S-SEC-5), but only when inputs supply the delay.
-4. Held-out labels come from a second implementation of the same written semantics; they
-   cannot catch a flaw in the semantics themselves.
-5. OIDC is tested only with local keys and a fake JWKS. All API limits are per process.
-6. uvicorn is installed by pinned version, not from the lockfile.
+1. **Possible-history token expiry (R1).** In the possible-history phase credential expiry is
+   evaluated at analysis time, so a token that expired before analysis may be treated as never
+   usable in earlier history. Needs a semantic decision and cases in both checkers. The only
+   open item that could produce false containment.
+2. **Live validation covers one version and one cluster shape.** Kubernetes v1.31.4, one idle
+   single-node kind cluster: 17/17 spike steps agree across 3 runs; collector evidence
+   reproduces residual-token and targeted-containment conclusions.
+3. **Model-level only:** token expiry/audience/SA-UID rules, controllers and exec, RBAC details,
+   list/watch Secret reads (A-3, fixed in both checkers, no lab step), ordering races, all 44
+   held-out cases.
+4. **Propagation.** Rotation took 2.4–16 s with `syncFrequency: 10s` and 54.7 s with the default.
+   S-SEC-5 represents it when inputs supply the delay; in the lab `d` is measured in the same run.
+5. Held-out labels come from a second implementation of the same written semantics.
+6. API image installs `.[api,postgres]` with pip, not from `uv.lock`.
+7. OIDC tested only with local keys; all API limits are per process; one cluster can flood the
+   shared job queue (unconfirmed).
 
 ## Next safe task
 
-(a) collect the other lab scenarios (targeted containment, canary rotation); (b) a lab receipt for S-SEC-5 (old credential rejected at t+d);
-(c) add uvicorn to a locked extra; (d) full adversarial review (phase 9) and final audit.
+(a) Decide R1 and add cases to engine and reference checker; (b) build the API image from
+`uv.lock`; (c) lab steps for list/watch reads, token expiry and `defender-race`; (d) Kubernetes
+version matrix and a multi-node cluster; (e) tag a research release once a CI run on the final
+commit is green.
