@@ -15,6 +15,9 @@ flowchart TD
     I --> J["Reference checker: packages/afterlock_reference"]
     R --> J
     R --> K["CLI (cli.py) and API (services/api)"]
+    K --> S["Storage: afterlock_api/storage.py (in-memory or PostgreSQL + migrations/)"]
+    S --> W["Worker: services/worker (leased jobs)"]
+    W --> G
     L["Lab supervisor: labs/supervisor/lab.py"] --> N["Validation receipts: labs/receipts"]
 ```
 
@@ -30,9 +33,10 @@ flowchart TD
 | Evidence projector / replay | `packages/afterlock/evidence.py` | implemented | model |
 | Reference checker | `packages/afterlock_reference` | implemented | stdlib only (**never** `afterlock`) |
 | CLI | `packages/afterlock/cli.py` | implemented | all of the above |
-| API | `services/api/afterlock_api` | implemented, in-memory storage | afterlock, fastapi, pydantic |
+| API | `services/api/afterlock_api` | implemented; in-memory or PostgreSQL storage | afterlock, fastapi, pydantic, psycopg (storage.py/migrate.py only) |
 | Lab supervisor | `labs/supervisor/lab.py` | written, **not executed** | kind, kubectl, afterlock (for predictions) |
-| Worker / PostgreSQL job queue | `services/worker`, `migrations/` | planned | — |
+| Storage + migrations | `services/api/afterlock_api/{storage,migrate}.py`, `migrations/` | implemented; PostgreSQL path tested only in CI `postgres` job | psycopg 3 (optional extra `postgres`) |
+| Worker / PostgreSQL job queue | `services/worker/afterlock_worker` | implemented | afterlock, afterlock_reference, afterlock_api.storage |
 | Go metadata collector | `services/collector` | planned | — |
 | Investigation frontend | `web/` | planned | — |
 
@@ -75,6 +79,54 @@ import the engine.
 7. **Verify.** The reference checker replays witnesses and independently explores all
    interleavings. The lab records validation receipts.
 
+## Persistence and job execution
+
+Selected by `AFTERLOCK_DATABASE_URL`: unset means `MemoryStorage` (per process, lost on
+restart); set means `PostgresStorage` (psycopg 3). `GET /v1/health` reports which
+(`in-memory` or `postgresql`). The domain packages never import storage code.
+
+**Schema.** `migrations/NNNN_name.sql` are plain SQL, applied in order by
+`python -m afterlock_api.migrate`. The runner records `(version, name, checksum)` in
+`schema_migrations`. It refuses a gap in numbering, an applied migration whose file
+changed, and an applied version missing from the release. Each migration and its record
+commit together. The API and worker refuse to start on an older schema.
+
+| Table | Contents | Mutability |
+|---|---|---|
+| `cases` | sanitized projected input, diagnostics, `content_hash` | immutable (UPDATE/DELETE trigger) |
+| `analysis_manifests` | content-addressed `(cluster, case, kind, engine_version, payload)`; `input_hash`, semantic profile | immutable |
+| `jobs` | state, `lease_owner`, `lease_expires_at`, `heartbeat_at`, `attempts`/`max_attempts`, `cancel_requested`, `last_error` | state machine below |
+| `results` | versioned result; `UNIQUE (job_id)` | immutable |
+
+Every row has `cluster_id`. Every API query filters on the caller's clusters, and every
+worker write names both `job_id` and `cluster_id`. All SQL is parameterized. No token or
+Secret value is stored; cases hold only the sanitized projection. Because deletes are
+refused, retention cannot silently remove evidence that a published result references.
+No retention job exists yet.
+
+**Jobs.** `queued → leased → running → succeeded | failed | cancelled`. A worker claims the
+oldest claimable job with `SELECT … FOR UPDATE SKIP LOCKED`. Claimable means queued, or
+leased/running with an expired lease. The claim increments `attempts`; once the retry
+budget is spent, an expired job becomes `failed`. Before running, the worker recomputes
+the manifest hash. While the pure engine runs, a heartbeat thread extends the lease.
+Cancelling a queued job is immediate. For a leased or running job, cancellation sets
+`cancel_requested`; the worker sees it on its next heartbeat and acknowledges. The engine
+call itself is not interruptible, so a cancelled job may keep computing until it
+finishes, and its result is then discarded.
+
+**Publication invariant.** A result is inserted only inside one transaction that:
+1. locks the job row;
+2. checks that the caller holds an unexpired lease and no cancellation was requested;
+3. joins the job's manifest and case rows (committed with the job at enqueue, so no job
+   exists without its full input);
+4. marks the job `succeeded`.
+
+`UNIQUE (job_id)` makes a duplicate completion a no-op. A worker whose lease expired
+cannot publish; another worker re-runs the job from the same immutable manifest.
+
+**In-memory mode** has no separate worker. The API runs queued jobs in-process after the
+response (FastAPI background task), using the same claim/complete protocol.
+
 ## Why a fixpoint equals interleaving
 
 Every supported attacker transition only *adds* attacker capability or objects. Between
@@ -98,3 +150,7 @@ compare the two (ADR 0004).
 | Collector gap / stale heartbeat | coverage gap |
 | Derivation cap reached | `unknown`, scope says exploration incomplete |
 | Planner evaluation cap | `incomplete_search`, never "no plan exists" |
+| Worker crash / stall | lease expires; job re-run from its immutable manifest (bounded by `max_attempts`); stale worker cannot publish |
+| Duplicate completion | ignored (`UNIQUE (job_id)` + lease check) |
+| Crash during publication | transaction rolls back; no partial result; job re-claimable after lease expiry |
+| Edited or unknown applied migration | migration runner refuses to proceed |
