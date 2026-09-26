@@ -1,5 +1,9 @@
 # AFTERLOCK
 
+[![CI](https://github.com/rakshit-737/afterlock/actions/workflows/ci.yml/badge.svg)](https://github.com/rakshit-737/afterlock/actions/workflows/ci.yml)
+[![live-lab](https://github.com/rakshit-737/afterlock/actions/workflows/live-lab.yml/badge.svg)](https://github.com/rakshit-737/afterlock/actions/workflows/live-lab.yml)
+[![License](https://img.shields.io/github/license/rakshit-737/afterlock)](LICENSE)
+
 
 AFTERLOCK is an open-source, evidence-backed **containment verifier** for Kubernetes
 workload identities. It models permissions, previously acquired credentials,
@@ -10,8 +14,10 @@ the way that access was first acquired.
 **A permission was revoked. Prove the access is gone.**
 
 > **Maturity:** research-grade, version 0.1.0. The replay engine, reference checker,
-> planner, CLI, and API are implemented and tested. The **live Kubernetes validation
-> has not been executed yet**, so every result carries `validation: not_executed`.
+> planner, CLI, and API are implemented and tested. A live kind lab (Kubernetes v1.31.4)
+> has confirmed the model on 11/11 semantic spike steps, including bound-token rejection
+> after Pod deletion and downstream credential rotation. That is one version on one idle
+> cluster; other rules remain model-level.
 > See [docs/engineering/status.md](docs/engineering/status.md).
 
 ## The failure mode
