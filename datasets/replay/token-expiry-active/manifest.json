@@ -1,0 +1,10 @@
+{
+  "case_id": "token-expiry-active",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:ce950a90d65c6502100b2e642d79066092391140e83d38b9161474140ff0dd21",
+    "events.jsonl": "sha256:b7bb412509ea8aabbc367b8e7cd0392c59312fa9605ef7ca793639b86fbcd0e4",
+    "inventory.json": "sha256:b83e3a37ecf28d96c3fa5b1135cd880fece368c85f7692841a87a77056343829"
+  },
+  "schema": "afterlock.replay/1"
+}
