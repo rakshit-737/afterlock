@@ -13,6 +13,15 @@
 # updates (the canary rotation step) propagate sooner. The spike still measures
 # and records the elapsed rotation time; this setting shortens it, it does not
 # hide it, and it is lab-specific (production kubelets usually keep 1m).
+#
+# Audit logging: the API server logs with the collector's policy
+# (services/collector/deploy/audit-policy.yaml, Metadata level, no bodies) to a
+# JSON-lines file. `lab.py create` stages the policy at the fixed host path
+# /tmp/afterlock-lab/policy/ before creating the cluster; the log directory is
+# mounted back to /tmp/afterlock-lab/audit/ on the host, where `lab.py collect`
+# hands it to the Go collector running on the host (read-only ServiceAccount
+# token, never admin credentials). maxsize is large enough that the log is not
+# rotated during a lab run.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: afterlock-lab
@@ -23,6 +32,32 @@ nodes:
       - |
         kind: KubeletConfiguration
         syncFrequency: 10s
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            audit-policy-file: /etc/kubernetes/afterlock/audit-policy.yaml
+            audit-log-path: /var/log/kubernetes/audit/audit.log
+            audit-log-format: json
+            audit-log-maxsize: "500"
+            audit-log-maxbackup: "1"
+          extraVolumes:
+            - name: afterlock-audit-policy
+              hostPath: /etc/kubernetes/afterlock
+              mountPath: /etc/kubernetes/afterlock
+              readOnly: true
+              pathType: DirectoryOrCreate
+            - name: afterlock-audit-log
+              hostPath: /var/log/kubernetes/audit
+              mountPath: /var/log/kubernetes/audit
+              readOnly: false
+              pathType: DirectoryOrCreate
+    extraMounts:
+      - hostPath: /tmp/afterlock-lab/policy
+        containerPath: /etc/kubernetes/afterlock
+        readOnly: true
+      - hostPath: /tmp/afterlock-lab/audit
+        containerPath: /var/log/kubernetes/audit
 networking:
   apiServerAddress: "127.0.0.1"
   disableDefaultCNI: true
