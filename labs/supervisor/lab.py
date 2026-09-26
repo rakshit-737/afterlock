@@ -13,7 +13,14 @@ and, against the synthetic canary relying service (S-SEC-2..4), that
   8. it still does after Kubernetes containment (binding removed, Pod deleted),
   9. rotation at the canary is acknowledged (new value accepted),
  10. the copied value is then rejected, and
- 11. the legitimate workload reads the rotated value and still uses the service.
+ 11. the legitimate workload reads the rotated value and still uses the service,
+and that network isolation holds (verified, not assumed from manifests):
+ 12. a Pod in a non-allowed namespace gets no answer from the canary, and
+ 13. attacker Pods get no answer from a non-allowed in-cluster destination,
+each after a control showing the destination answers an allowed client.
+
+`reset` restores the post-create state without recreating the cluster, and
+`spike --repeat N` runs reset+spike N times, one receipt per run plus a summary.
 
 Every observation is compared with the engine's prediction for the matching
 replay case and written to labs/receipts/. Tokens and credential values stay in
@@ -47,8 +54,16 @@ NS = "demo"
 POLL_SECONDS = 120
 ROTATION_POLL_SECONDS = 180  # mounted Secret volumes refresh on the kubelet sync period
 CANARY_URL = "http://canary.canary.svc:8080/use"
+OUTSIDER_URL = "http://outsider.outsider.svc:8080/"
+# Calico (policy-enforcing CNI). The digest was computed from this exact URL on
+# 2026-09-26; install_cni() refuses any manifest that does not match it.
+CALICO_URL = "https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/calico.yaml"
+CALICO_SHA256 = "ef325a26cb4e0a2d386d0e512c0cf4fd0fa935ac25777b41b0d3737153025a1c"
 
 sys.path.insert(0, str(ROOT / "packages"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from receipts import agrees, network_policies, summarise, validation  # noqa: E402
 
 
 class LabError(RuntimeError):
@@ -138,18 +153,30 @@ class Api:
             return int(err.code), None
 
 
-def canary_use(credential: str) -> int:
-    """Offer a credential to the canary from the probe Pod; return the HTTP status (0 if unreachable).
+def http_probe(ns: str, pod: str, url: str, credential: str = "") -> tuple[int, str]:
+    """GET url from inside a lab Pod; return (HTTP status, reason). Status 0 = no HTTP answer.
 
-    The value travels on stdin, so it is absent from every host command line.
+    The credential (possibly empty) travels on stdin, so it is absent from every host
+    command line. reason is one of a fixed set, never raw output.
     """
-    script = ('read -r c; wget -q -O /dev/null --header "X-Canary-Credential: $c" '
-              f'{CANARY_URL} 2>&1; echo "rc=$?"')
-    out = kubectl("exec", "-i", "-n", NS, "canary-probe", "--", "sh", "-c", script, stdin=(credential + "\n").encode())
+    script = ('read -r c; wget -q -T 10 -O /dev/null --header "X-Canary-Credential: $c" '
+              f'{url} 2>&1; echo "rc=$?"')
+    out = kubectl("exec", "-i", "-n", ns, pod, "--", "sh", "-c", script, stdin=(credential + "\n").encode())
     if out.rstrip().endswith("rc=0"):
-        return 200
+        return 200, "answered"
     m = re.search(r"HTTP/1\.[01] (\d{3})", out)
-    return int(m.group(1)) if m else 0
+    if m:
+        return int(m.group(1)), "answered"
+    low = out.lower()
+    for needle, reason in (("timed out", "timeout"), ("refused", "refused"), ("bad address", "dns")):
+        if needle in low:
+            return 0, reason
+    return 0, "other"
+
+
+def canary_use(credential: str) -> int:
+    """Offer a credential to the canary from the probe Pod; return the HTTP status (0 if unreachable)."""
+    return http_probe(NS, "canary-probe", CANARY_URL, credential)[0]
 
 
 def set_credential(value: str) -> None:
@@ -200,22 +227,72 @@ def predict_legit(case: str, op: str) -> str:
     return "preserved" if {o["id"]: o["preserved"] for o in b["legitimate_operations"]}[op] else "broken"
 
 
+def install_cni() -> None:
+    """Install Calico from a pinned manifest whose SHA-256 is verified before use.
+
+    The manifest is Kubernetes YAML (data applied through the API), not a script, and
+    it is rejected unless its digest matches CALICO_SHA256 exactly.
+    """
+    with urllib.request.urlopen(CALICO_URL, timeout=60) as resp:
+        manifest = resp.read()
+    digest = hashlib.sha256(manifest).hexdigest()
+    if digest != CALICO_SHA256:
+        raise LabError(f"Calico manifest digest mismatch ({digest}); refusing to apply")
+    kubectl("apply", "-f", "-", stdin=manifest)
+    kubectl("-n", "kube-system", "rollout", "status", "daemonset/calico-node", "--timeout=300s")
+    kubectl("wait", "--for=condition=Ready", "node", "--all", "--timeout=300s")
+
+
+def api_server_endpoint() -> tuple[str, int]:
+    """The post-DNAT API server address that pods actually connect to."""
+    ep = json.loads(kubectl("get", "endpoints", "kubernetes", "-n", "default", "-o", "json"))
+    subset = ep["subsets"][0]
+    return subset["addresses"][0]["ip"], int(subset["ports"][0]["port"])
+
+
+def apply_network_policies() -> None:
+    ip, port = api_server_endpoint()
+    for policy in network_policies(ip, port):
+        kubectl("apply", "-f", "-", stdin=json.dumps(policy).encode())
+
+
+def wait_fixture_pods() -> None:
+    for ns, pod in (("canary", "canary"), (NS, "canary-probe"), (NS, "release-app"), ("outsider", "outsider")):
+        kubectl("wait", "--for=condition=Ready", f"pod/{pod}", "-n", ns, "--timeout=180s")
+
+
+def seed_credential() -> float:
+    """Write a fresh synthetic credential and wait until the canary accepts it; return seconds waited."""
+    fake = "synthetic-" + secrets.token_hex(12)
+    set_credential(fake)
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < ROTATION_POLL_SECONDS:
+        if canary_use(fake) == 200:
+            del fake
+            return round(time.monotonic() - t0, 2)
+        time.sleep(2)
+    del fake
+    raise LabError("canary did not accept the seeded credential in time")
+
+
 # ---------------------------------------------------------------- commands
 
 
-def cmd_create() -> None:
+def cmd_create(_args: list[str]) -> None:
     if CLUSTER in run(["kind", "get", "clusters"]).split():
         raise LabError(f"cluster {CLUSTER} already exists; destroy it first")
     run(["kind", "create", "cluster", "--config", str(ROOT / "labs" / "kind" / "cluster.yaml")])
+    install_cni()
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "residual-token.yaml"))
     instance = secrets.token_hex(8)
     kubectl("label", "namespace", NS, f"afterlock.dev/lab-instance={instance}")
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "canary-service.yaml"))
+    kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "isolation-probe.yaml"))
+    apply_network_policies()
     fake = "synthetic-" + secrets.token_hex(12)
     set_credential(fake)
     del fake
-    for ns, pod in (("canary", "canary"), (NS, "canary-probe"), (NS, "release-app")):
-        kubectl("wait", "--for=condition=Ready", f"pod/{pod}", "-n", ns, "--timeout=180s")
+    wait_fixture_pods()
     STATE.parent.mkdir(parents=True, exist_ok=True)
     ident = live_identity()
     ident["kubernetes_version"] = json.loads(kubectl("version", "-o", "json"))["serverVersion"]["gitVersion"]
@@ -223,28 +300,73 @@ def cmd_create() -> None:
     print(f"lab created: {ident['server']} instance {instance} ({ident['kubernetes_version']})")
 
 
-def cmd_spike() -> None:
-    ident = require_recorded_lab()
+def reset(ident: dict[str, Any]) -> dict[str, Any]:
+    """Restore the post-create state without recreating the cluster.
+
+    Deletes attacker pods, removes the admission policy, restores bindings and
+    network policies from the manifests, and re-seeds the synthetic credential
+    (waiting until the canary accepts it). The recorded identity is re-checked
+    afterwards: namespace UIDs must not change.
+    """
+    t0 = time.monotonic()
+    kubectl("delete", "pods", "-n", NS, "-l", "afterlock.dev/actor=attacker", "--wait=true", "--ignore-not-found")
+    kubectl("delete", "-f", str(ROOT / "labs" / "manifests" / "admission-restrict.yaml"), "--ignore-not-found")
+    kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "residual-token.yaml"))
+    kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "canary-service.yaml"))
+    kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "isolation-probe.yaml"))
+    apply_network_policies()
+    wait_fixture_pods()
+    seed_wait = seed_credential()
+    after = require_recorded_lab()
+    if after["namespace_uid"] != ident["namespace_uid"]:
+        raise LabError("namespace was recreated during reset")
+    return {"elapsed_seconds": round(time.monotonic() - t0, 2), "credential_seed_elapsed_seconds": seed_wait}
+
+
+def cmd_reset(_args: list[str]) -> None:
+    info = reset(require_recorded_lab())
+    print(f"lab reset in {info['elapsed_seconds']} s (credential accepted after {info['credential_seed_elapsed_seconds']} s)")
+
+
+def run_spike(ident: dict[str, Any]) -> list[dict[str, Any]]:
     api = Api(ident)
     receipts: list[dict[str, Any]] = []
     secret_path = f"/api/v1/namespaces/{NS}/secrets/release-credential"
     pods_path = f"/api/v1/namespaces/{NS}/pods"
 
-    def record(step: str, predicted: str, observed: int, expect_ok: bool, **extra: Any) -> None:
-        ok = 200 <= observed < 300
-        agrees = observed != 0 and ok == expect_ok  # 0 = no answer, never evidence of rejection
-        receipts.append({"step": step, "model_prediction": predicted, "observed_http_status": observed,
-                         "agrees": agrees, **extra})
-        print(f"  {step}: HTTP {observed} ({'agrees' if agrees else 'CONTRADICTS'} model)")
+    def record(step: str, predicted: str, observed: int, expect: str, case: str | None = None,
+               objective: str | None = None, **extra: Any) -> None:
+        ok = agrees(observed, expect)
+        entry: dict[str, Any] = {"step": step, "model_prediction": predicted, "expect": expect,
+                                 "observed_http_status": observed, "agrees": ok}
+        if case:
+            entry.update(replay_case=case, objective=objective)
+        receipts.append({**entry, **extra})
+        print(f"  {step}: HTTP {observed} ({'agrees' if ok else 'CONTRADICTS'} model)")
+
+    def predicted(case: str, objective: str) -> dict[str, Any]:
+        return {"predicted": predict(case, objective), "case": case, "objective": objective}
 
     ci = kubectl("create", "token", "ci-runner", "-n", NS, "--duration=20m").strip()  # seeded compromise
-    record("ci-creates-release-reader-pod", "may_create", api.request(ci, "POST", pods_path, attacker_pod("diagnostic-job", "release-reader")), True)
+    record("ci-creates-release-reader-pod", "may_create", api.request(ci, "POST", pods_path, attacker_pod("diagnostic-job", "release-reader")), "answer_ok")
     stolen = pod_token("diagnostic-job")
     status, copied = api.read_secret_value(stolen, secret_path)
-    record("attacker-reads-secret", "violated", status, True)
+    record("attacker-reads-secret", "violated", status, "answer_ok")
     if copied is None:
         raise LabError("attacker read failed; downstream steps cannot run")
-    record("copied-credential-accepted-by-canary", predict("residual-token", "protect-canary"), canary_use(copied), True)
+    record("copied-credential-accepted-by-canary", observed=canary_use(copied), expect="answer_ok",
+           **predicted("residual-token", "protect-canary"))
+
+    # Network isolation. Each "no_answer" step is preceded by a control showing the
+    # target does answer an allowed client, so status 0 is not a broken probe.
+    status, reason = http_probe(NS, "canary-probe", CANARY_URL)
+    record("isolation-control-canary-answers-demo", "reachable", status, "answer_denied", probe_reason=reason)
+    status, reason = http_probe("outsider", "outsider", CANARY_URL)
+    record("isolation-outsider-cannot-reach-canary", "unreachable", status, "no_answer", probe_reason=reason)
+    status, reason = http_probe(NS, "canary-probe", OUTSIDER_URL)
+    record("isolation-control-outsider-answers-demo", "reachable", status, "answer_denied", probe_reason=reason)
+    status, reason = http_probe(NS, "diagnostic-job", OUTSIDER_URL)
+    record("isolation-attacker-egress-to-outsider-denied", "unreachable", status, "no_answer", probe_reason=reason)
 
     kubectl("delete", "rolebinding", "ci-pod-creator", "-n", NS)
     t0 = time.monotonic()
@@ -254,8 +376,9 @@ def cmd_spike() -> None:
         if status == 403:
             break
         time.sleep(1)
-    record("ci-creation-blocked-after-binding-removal", "blocked", status, False, elapsed_seconds=round(time.monotonic() - t0, 2))
-    record("residual-token-still-reads-secret", predict("residual-token", "protect-secret"), api.request(stolen, "GET", secret_path), True)
+    record("ci-creation-blocked-after-binding-removal", "blocked", status, "answer_denied", elapsed_seconds=round(time.monotonic() - t0, 2))
+    record("residual-token-still-reads-secret", observed=api.request(stolen, "GET", secret_path), expect="answer_ok",
+           **predicted("residual-token", "protect-secret"))
 
     uid = json.loads(kubectl("get", "pod", "diagnostic-job", "-n", NS, "-o", "json"))["metadata"]["uid"]
     kubectl("delete", "pod", "diagnostic-job", "-n", NS, "--wait=true")
@@ -265,11 +388,11 @@ def cmd_spike() -> None:
         if status == 401:
             break
         time.sleep(1)
-    record("bound-token-rejected-after-pod-deletion", "rejected", status, False,
+    record("bound-token-rejected-after-pod-deletion", "rejected", status, "answer_denied",
            pod_uid=uid, elapsed_seconds_after_deletion_complete=round(time.monotonic() - t0, 2))
     del stolen
-    record("copied-credential-survives-kubernetes-containment", predict("copied-downstream", "protect-canary"),
-           canary_use(copied), True)
+    record("copied-credential-survives-kubernetes-containment", observed=canary_use(copied), expect="answer_ok",
+           **predicted("copied-downstream", "protect-canary"))
 
     rotated = "synthetic-" + secrets.token_hex(12)
     set_credential(rotated)
@@ -280,52 +403,85 @@ def cmd_spike() -> None:
         if status == 200 and old_status == 401:
             break
         time.sleep(2)
-    record("rotation-acknowledged-by-canary", "acknowledged", status, True,
+    # The elapsed time is the kubelet mounted-Secret refresh delay; it is recorded, never hidden.
+    record("rotation-acknowledged-by-canary", "acknowledged", status, "answer_ok",
            elapsed_seconds=round(time.monotonic() - t0, 2))
     del rotated
-    record("copied-credential-rejected-after-rotation", predict("targeted-containment", "protect-canary"), old_status, False)
+    record("copied-credential-rejected-after-rotation", observed=old_status, expect="answer_denied",
+           **predicted("targeted-containment", "protect-canary"))
     del copied
 
     legit = kubectl("create", "token", "release-reader", "-n", NS, "--duration=10m").strip()
     status, current = api.read_secret_value(legit, secret_path)
     del legit
     record("legitimate-workload-uses-rotated-credential", predict_legit("targeted-containment", "release-canary"),
-           canary_use(current) if status == 200 and current is not None else status, True)
+           canary_use(current) if status == 200 and current is not None else status, "answer_ok",
+           case="targeted-containment", objective="legitimate:release-canary")
     del current
 
     kubectl("create", "rolebinding", "ci-pod-creator", "-n", NS, "--role=pod-creator", f"--serviceaccount={NS}:ci-runner")
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "admission-restrict.yaml"))
     time.sleep(5)  # policy propagation; the observed outcome is what counts
-    record("negative-control-admission-denies", predict("admission-denied", "protect-secret"),
-           api.request(ci, "POST", pods_path + "?dryRun=All", attacker_pod("probe", "release-reader")), False)
+    record("negative-control-admission-denies",
+           observed=api.request(ci, "POST", pods_path + "?dryRun=All", attacker_pod("probe", "release-reader")),
+           expect="answer_denied", **predicted("admission-denied", "protect-secret"))
     del ci
+    return receipts
 
-    validation = "lab_confirmed" if all(r["agrees"] for r in receipts) else "lab_contradicted"
+
+def parse_repeat(args: list[str]) -> int:
+    if not args:
+        return 1
+    if len(args) == 2 and args[0] == "--repeat" and args[1].isdigit() and 1 <= int(args[1]) <= 20:
+        return int(args[1])
+    raise LabError("usage: lab.py spike [--repeat N] (1 <= N <= 20)")
+
+
+def cmd_spike(args: list[str]) -> None:
+    repeat = parse_repeat(args)
+    ident = require_recorded_lab()
+    lab = {k: ident[k] for k in ("server", "ca_sha256", "kubernetes_version", "lab_instance")}
     RECEIPTS.mkdir(parents=True, exist_ok=True)
-    out = RECEIPTS / f"spike-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json"
-    out.write_text(json.dumps({"lab": {k: ident[k] for k in ("server", "ca_sha256", "kubernetes_version", "lab_instance")},
-                               "validation": validation, "receipts": receipts}, indent=2) + "\n")
-    print(f"validation: {validation}; receipt: {out.relative_to(ROOT)}")
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    runs, names = [], []
+    for i in range(repeat):
+        doc: dict[str, Any] = {"lab": lab}
+        if repeat > 1:
+            print(f"run {i + 1}/{repeat}: reset")
+            doc["run"] = {"index": i + 1, "of": repeat, "reset": reset(ident)}
+        receipts = run_spike(ident)
+        doc.update(validation=validation(receipts), receipts=receipts)
+        out = RECEIPTS / (f"spike-{stamp}.json" if repeat == 1 else f"spike-{stamp}-r{i + 1}.json")
+        out.write_text(json.dumps(doc, indent=2) + "\n")
+        print(f"validation: {doc['validation']}; receipt: {out.relative_to(ROOT).as_posix()}")
+        runs.append(doc)
+        names.append(out.name)
+    if repeat > 1:
+        summary = {"lab": lab, **summarise(runs, names)}
+        out = RECEIPTS / f"spike-summary-{stamp}.json"
+        out.write_text(json.dumps(summary, indent=2) + "\n")
+        print(f"all runs agree: {summary['all_runs_agree']}; summary: {out.relative_to(ROOT).as_posix()}")
 
 
-def cmd_destroy() -> None:
+def cmd_destroy(_args: list[str]) -> None:
     require_recorded_lab()
     run(["kind", "delete", "cluster", "--name", CLUSTER])
     STATE.unlink()
     print("lab destroyed")
 
 
-def cmd_status() -> None:
+def cmd_status(_args: list[str]) -> None:
     print(json.dumps(require_recorded_lab(), indent=2))
 
 
 def main() -> int:
-    cmds = {"create": cmd_create, "spike": cmd_spike, "demo": cmd_spike, "verify": cmd_status, "status": cmd_status, "destroy": cmd_destroy}
+    cmds = {"create": cmd_create, "spike": cmd_spike, "demo": cmd_spike, "reset": cmd_reset,
+            "verify": cmd_status, "status": cmd_status, "destroy": cmd_destroy}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
-        print(f"usage: lab.py {{{','.join(cmds)}}}", file=sys.stderr)
+        print(f"usage: lab.py {{{','.join(cmds)}}} [--repeat N]", file=sys.stderr)
         return 2
     try:
-        cmds[sys.argv[1]]()
+        cmds[sys.argv[1]](sys.argv[2:])
     except LabError as exc:
         print(f"lab: {exc}", file=sys.stderr)
         return 1
