@@ -13,7 +13,7 @@ cluster only. Rules marked "planned" or "—" are model-level only.
 | ID | Rule | Lab step |
 |---|---|---|
 | S-ID-1 | A service-account username is `system:serviceaccount:<ns>:<name>`. | — |
-| S-TOK-1 | A projected SA token is usable only if unexpired (`time < expires_at`). | planned (expiry case) |
+| S-TOK-1 | A projected SA token is usable only if unexpired at the time of use (`t < expires_at`). In the defender phases `t` is the interval's time. In the conservative view's possible-history phase, expiry is evaluated at the time each hypothetical use would occur, anywhere in the window `[history_start, analysis_time]` (`history_start` is an optional input field; absent means unbounded below). A seeded token that expired by `analysis_time` is therefore usable in history iff `expires_at > history_start` (always, when `history_start` is absent), and what it yields there (Secret knowledge, control of Pods that still exist) carries forward. The phase runs whenever the view has a historical Pod or such an expired seeded token. The evidence-supported view never assumes history. | planned (expiry case) |
 | S-TOK-2 | …only if its audience is one of the profile's API-server audiences. | planned |
 | S-TOK-3 | …only if the service account exists **with the same UID**. | planned |
 | S-TOK-4 | …only if the bound Pod exists **with the same UID** and runs as that SA. | `bound-token-rejected-after-pod-deletion` |
