@@ -12,3 +12,16 @@ services:
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
     tmpfs: ["/tmp"]
+
+  # Investigation UI (static files, unprivileged nginx). Proxies /v1 to the api service.
+  web:
+    build:
+      context: services/web
+      dockerfile: Dockerfile
+    depends_on: [api]
+    ports:
+      - "127.0.0.1:8081:8080"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
