@@ -15,10 +15,12 @@ the way that access was first acquired.
 
 > **Maturity:** research-grade, version 0.1.0. The replay engine, reference checker,
 > planner, CLI, and API are implemented and tested. A live kind lab (Kubernetes v1.31.4)
-> has confirmed the model on 11/11 semantic spike steps, including bound-token rejection
-> after Pod deletion and downstream credential rotation. That is one version on one idle
-> cluster; other rules remain model-level.
-> See [docs/engineering/status.md](docs/engineering/status.md).
+> agrees with the model on 17/17 semantic spike steps in each of 3 repeated runs, including
+> bound-token rejection after Pod deletion, downstream credential rotation and its propagation
+> window, and the collector-evidence path for two cases. That is one version on one idle
+> single-node cluster; other rules remain model-level. It is not production-ready.
+> See [docs/engineering/final-audit.md](docs/engineering/final-audit.md) and
+> [docs/engineering/status.md](docs/engineering/status.md).
 
 ## The failure mode
 
@@ -118,7 +120,7 @@ flowchart LR
 See [docs/architecture/system.md](docs/architecture/system.md) and
 [docs/semantics/supported.md](docs/semantics/supported.md).
 
-## Supported semantics (profile `k8s-1.31-core-v1`, conformance **unverified**)
+## Supported semantics (profile `k8s-1.31-core-v1`, conformance **partial**: some rules lab-confirmed on v1.31.4, the rest model-level)
 
 RBAC Roles/ClusterRoles/bindings (User, ServiceAccount, and SA group subjects;
 `resourceNames`) · projected service-account tokens (expiry, audience, SA UID,
@@ -147,15 +149,20 @@ are these:
 - A mutation suite. Removing the bound-Pod, expiry, or audience checks, or treating
   unsupported admission as allow, is caught every time.
 
-Real-cluster labels are the next milestone.
+A separate, small label set derived only from observed lab HTTP statuses covers 6 objectives
+in 4 cases: full AFTERLOCK agrees on 6/6, snapshot-only on 3/6
+([benchmarks/reports/semantic-corpus.md](benchmarks/reports/semantic-corpus.md)). Lab labels
+for more scenario families are the next milestone.
 
 ## Live lab
 
 `scripts/lab create && scripts/lab spike && scripts/lab destroy` runs the Kubernetes
 semantic spike. You need a **disposable** Docker-capable Linux host with `kind` and
 `kubectl`. The spike records receipts that compare each real API outcome with the
-engine's prediction. It can also run as the manual `live-lab` GitHub workflow. It has
-**not** been run yet. See [docs/tutorials/live-lab.md](docs/tutorials/live-lab.md).
+engine's prediction. It also runs as the manual `live-lab` GitHub workflow; committed
+receipts are in `labs/receipts/` (latest: `spike-summary-20260926T132141Z.json`,
+`collect-20260926T132806Z.json`, run 36244828581). See
+[docs/tutorials/live-lab.md](docs/tutorials/live-lab.md).
 
 ## Security model
 
@@ -169,7 +176,9 @@ See [SECURITY.md](SECURITY.md) and [docs/threat_model/threat-model.md](docs/thre
 
 AFTERLOCK cannot establish that no credential was copied. It cannot un-disclose data.
 It covers only declared objectives and the supported profile. It assumes control-plane
-changes propagate before the next step, which is a lab-testable assumption. It excludes
+changes propagate before the next step. The lab supports this for binding removal and Pod
+deletion on one version, but not for downstream rotation, which took seconds to take effect
+(model it with `rotation_propagation_seconds`). It excludes
 node, host, and control-plane compromise. It never applies remediation to real clusters.
 Result bundles repeat the relevant limitations.
 
