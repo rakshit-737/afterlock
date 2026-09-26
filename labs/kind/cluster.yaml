@@ -1,0 +1,11 @@
+# Disposable AFTERLOCK lab cluster. Created only by labs/supervisor/lab.py on a
+# disposable Docker-capable Linux host. Never point the supervisor at another cluster.
+# Pin the node image by digest before a recorded run (see docs/engineering/verification.md).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: afterlock-lab
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.31.4
+networking:
+  apiServerAddress: "127.0.0.1"
