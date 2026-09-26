@@ -213,6 +213,26 @@ jobs:
           echo "AFTERLOCK_SMOKE_TOKEN=$token" >> "$GITHUB_ENV"
       - name: Build api/worker/migrate and web images
         run: docker compose build
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.32"
+      - name: API image packages match uv.lock
+        # Expected set: the same export the Dockerfile uses, installed into a scratch Linux
+        # 3.11 venv so environment markers resolve as they do in the image.
+        run: |
+          set -euo pipefail
+          lockcheck="$RUNNER_TEMP/lockcheck"
+          uv export --frozen --no-dev --extra api --extra postgres --no-emit-project \
+            --format requirements-txt --output-file "$lockcheck.txt"
+          uv venv -q -p 3.11 "$lockcheck"
+          uv pip sync -q --python "$lockcheck/bin/python" --require-hashes "$lockcheck.txt"
+          norm() { tr 'A-Z_' 'a-z-' | sort; }
+          uv pip freeze --python "$lockcheck/bin/python" | norm > "$lockcheck.expected"
+          docker compose run --rm --no-deps --entrypoint python api -m pip freeze \
+            | grep -v '^afterlock==' | norm > "$lockcheck.actual"
+          grep -q . "$lockcheck.expected"
+          diff -u "$lockcheck.expected" "$lockcheck.actual"
+          docker compose run --rm --no-deps --entrypoint python api -m pip freeze | grep -q '^afterlock=='
       - name: Build collector image
         run: docker build -t afterlock-collector:ci services/collector
       - name: Collector image runs as non-root
