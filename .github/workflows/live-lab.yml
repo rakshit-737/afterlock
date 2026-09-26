@@ -57,10 +57,14 @@ jobs:
         run: |
           go mod verify
           go build -trimpath -o "$RUNNER_TEMP/afterlock-collector" ./cmd/afterlock-collector
-      - name: Collector run against the lab (reset + spike + collect)
+      # Two collection windows (residual-token checkpoint, then post-containment compared
+      # with targeted-containment) plus the S-SEC-5 propagation steps; the test asserts
+      # every check is present and the receipt is lab_confirmed.
+      - name: Collector run against the lab (reset + spike + collect, both windows)
         env:
           AFTERLOCK_COLLECTOR_BIN: ${{ runner.temp }}/afterlock-collector
-        run: scripts/lab collect
+          AFTERLOCK_LIVE_COLLECT: "1"
+        run: python -m pytest -q tests/conformance -rs -k test_collect_both_windows
       # Reached only when `collect` succeeded, which requires a clean leak scan: the
       # supervisor keeps a bundle under labs/collected/ only after the scan passes.
       - name: Upload collected bundle (leak scan passed)
