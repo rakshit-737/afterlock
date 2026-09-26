@@ -26,3 +26,5 @@ services/web/test-results/
 services/web/playwright-report/
 coverage/
 benchmarks/reports/*.local.json
+# MkDocs build output
+site/
