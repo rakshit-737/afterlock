@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Smoke-test a running `docker compose` stack (stdlib only; never prints secrets).
+
+Usage (from the repository root, after `docker compose up -d --wait`):
+    AFTERLOCK_SMOKE_TOKEN=<analyst token for lab-local> scripts/compose-smoke
+
+Checks:
+  1. api  /v1/health reports storage "postgresql"
+  2. create case residual-token (datasets/replay), submit an analysis job, poll it to
+     succeeded, fetch the published analysis, assert conclusion.model == residual_path
+  3. web  serves index.html with a Content-Security-Policy header and proxies /v1/health
+  4. every compose container runs as a non-root user with a read-only root filesystem
+Exit status 0 only if every check passes.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parent.parent
+API = os.environ.get("AFTERLOCK_SMOKE_API", "http://127.0.0.1:8080")
+WEB = os.environ.get("AFTERLOCK_SMOKE_WEB", "http://127.0.0.1:8081")
+CASE = "residual-token"
+SERVICES = ("postgres", "migrate", "api", "worker", "web")
+FAILURES: list[str] = []
+
+
+def check(ok: bool, what: str) -> None:
+    print(("PASS " if ok else "FAIL ") + what, flush=True)
+    if not ok:
+        FAILURES.append(what)
+
+
+def http(method: str, url: str, token: str | None = None, body: Any = None) -> tuple[int, dict[str, str], bytes]:
+    headers = {"Accept": "application/json"}
+    data = None
+    if token is not None:
+        headers["Authorization"] = "Bearer " + token
+    if body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, {k.lower(): v for k, v in r.headers.items()}, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, {k.lower(): v for k, v in e.headers.items()}, e.read()
+
+
+def wait_ok(url: str, seconds: float = 120) -> tuple[int, dict[str, str], bytes]:
+    deadline = time.monotonic() + seconds
+    last: tuple[int, dict[str, str], bytes] = (0, {}, b"")
+    while time.monotonic() < deadline:
+        try:
+            last = http("GET", url)
+            if last[0] == 200:
+                return last
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(2)
+    return last
+
+
+def api_flow(token: str) -> None:
+    status, _, raw = wait_ok(API + "/v1/health")
+    health = json.loads(raw or b"{}") if status == 200 else {}
+    check(status == 200 and health.get("status") == "ok", f"api /v1/health 200 ok (got {status})")
+    check(health.get("storage") == "postgresql", f"api storage is postgresql (got {health.get('storage')!r})")
+
+    d = ROOT / "datasets" / "replay" / CASE
+    manifest = json.loads((d / "manifest.json").read_text())
+    events = [json.loads(line) for line in (d / "events.jsonl").read_text().splitlines() if line.strip()]
+    body = {"case_id": CASE, "cluster_id": manifest["cluster_id"], "inventory": json.loads((d / "inventory.json").read_text()),
+            "case": json.loads((d / "case.json").read_text()), "events": events}
+    status, _, raw = http("POST", API + "/v1/cases", token, body)
+    check(status == 201, f"create case {CASE} -> 201 (got {status})")
+
+    status, headers, raw = http("POST", f"{API}/v1/cases/{CASE}/analysis-jobs", token, {"mode": "full"})
+    check(status == 202, f"submit analysis job -> 202 (got {status})")
+    if status != 202:
+        return
+    job_id = json.loads(raw)["job_id"]
+    check(headers.get("location") == f"/v1/jobs/{job_id}", "job Location header")
+
+    job: dict[str, Any] = {}
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        status, _, raw = http("GET", f"{API}/v1/jobs/{job_id}", token)
+        job = json.loads(raw) if status == 200 else {}
+        if job.get("state") in ("succeeded", "failed", "cancelled"):
+            break
+        time.sleep(2)
+    check(job.get("state") == "succeeded", f"job {job_id} succeeded (state {job.get('state')!r}, last_error {job.get('last_error')!r})")
+    result_id = job.get("result_id")
+    if not result_id:
+        check(False, "job has result_id")
+        return
+    status, _, raw = http("GET", f"{API}/v1/analyses/{result_id}", token)
+    check(status == 200, f"fetch analysis {result_id} -> 200 (got {status})")
+    conclusion = (json.loads(raw).get("result") or {}).get("conclusion", {}) if status == 200 else {}
+    model = conclusion.get("model") if isinstance(conclusion, dict) else conclusion
+    check(model == "residual_path", f"conclusion is residual_path (got {model!r})")
+
+
+def web_flow() -> None:
+    status, headers, raw = wait_ok(WEB + "/")
+    check(status == 200, f"web / -> 200 (got {status})")
+    check(b"<!doctype html" in raw.lower()[:200], "web / serves index.html")
+    csp = headers.get("content-security-policy", "")
+    check("default-src 'none'" in csp and "script-src 'self'" in csp, "web / has Content-Security-Policy")
+    status, _, raw = http("GET", WEB + "/v1/health")
+    proxied = json.loads(raw or b"{}") if status == 200 else {}
+    check(status == 200 and proxied.get("storage") == "postgresql", f"web proxies /v1/health to api (got {status})")
+
+
+def docker(*args: str) -> str:
+    return subprocess.run(["docker", *args], check=True, capture_output=True, text=True, cwd=ROOT).stdout.strip()
+
+
+def container_flow() -> None:
+    for svc in SERVICES:
+        ids = docker("compose", "ps", "-a", "-q", svc).split()
+        if not ids:
+            check(False, f"{svc}: container exists")
+            continue
+        info = json.loads(docker("inspect", ids[0]))[0]
+        user = info["Config"].get("User") or ""
+        check(user.split(":")[0] not in ("", "0", "root"), f"{svc}: configured user is non-root ({user!r})")
+        check(info["HostConfig"].get("ReadonlyRootfs") is True, f"{svc}: read-only root filesystem")
+        check("ALL" in (info["HostConfig"].get("CapDrop") or []), f"{svc}: all capabilities dropped")
+        if info["State"].get("Running"):
+            uid = docker("exec", ids[0], "id", "-u")
+            check(uid != "0", f"{svc}: running process uid is non-root ({uid})")
+        elif svc == "migrate":
+            code = info["State"].get("ExitCode")
+            check(code == 0, f"migrate exited 0 (got {code})")
+        else:
+            check(False, f"{svc}: running")
+
+
+def main() -> int:
+    token = os.environ.get("AFTERLOCK_SMOKE_TOKEN")
+    if not token:
+        print("AFTERLOCK_SMOKE_TOKEN is required (analyst token for cluster lab-local)", file=sys.stderr)
+        return 2
+    api_flow(token)
+    web_flow()
+    container_flow()
+    if FAILURES:
+        print(f"{len(FAILURES)} check(s) failed", file=sys.stderr)
+        return 1
+    print("compose smoke: all checks passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
