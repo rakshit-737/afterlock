@@ -46,6 +46,11 @@ Write the result as `uses: owner/repo@<40-hex-sha> # vX.Y.Z`. Dependabot
 | kindest/node:v1.31.4 | `sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30` | labs/kind/cluster.yaml (matches the kind v0.26.0 release notes) |
 | busybox:1.36.1 | `sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662` | labs/manifests/*.yaml, labs/supervisor/lab.py |
 | python:3.12-alpine | `sha256:4c47124a8391cb7a9f571164147d154777cf012a4ece5f86097130d7a4478111` | labs/manifests/canary-service.yaml |
+| postgres:16 | `sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54` | compose.yaml, ci.yml (postgres service) |
+| node:22-alpine | `sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402` | services/web/Dockerfile (build stage) |
+| nginxinc/nginx-unprivileged:1.27-alpine | `sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0` | services/web/Dockerfile (runtime) |
+| golang:1.24.13-bookworm | `sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac` | services/collector/Dockerfile (build stage) |
+| gcr.io/distroless/static-debian12:nonroot | `sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab` | services/collector/Dockerfile (runtime) |
 
 All digests are multi-architecture index (manifest list) digests, so the same pin works
 on amd64 and arm64. Resolve one:
@@ -84,5 +89,8 @@ binary, so this detects corruption, not an upstream compromise.
 
 - `services/api/Dockerfile` installs `.[api]` and `uvicorn==0.30.6` with pip, resolving
   transitive dependencies at build time instead of from `uv.lock`.
-- No signed artifacts, provenance attestations, or SBOM for the container image.
+- No signed artifacts, provenance attestations, or SBOM for the container images.
+- Calico's container images are referenced by tag inside the upstream `calico.yaml`; the
+  manifest itself is SHA-256-pinned (`CALICO_SHA256` in `labs/supervisor/lab.py`), so the
+  tags are fixed but not digest-pinned. Pinning them requires vendoring a rewritten manifest.
 - Upstream checksum for kind/kubectl is same-origin (see above).
