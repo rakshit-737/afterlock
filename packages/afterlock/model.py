@@ -179,6 +179,16 @@ class DownstreamService:
     source_namespace: str
     source_secret: str
     accepted_version: int
+    # S-SEC-5: seconds after a rotation during which the service still accepts the
+    # version it accepted before the rotation (measured propagation delay; 0 = atomic).
+    rotation_propagation_seconds: int = 0
+    # (version, accepted_until) pairs still honoured after earlier rotations.
+    grace: tuple[tuple[int, int], ...] = ()
+
+    def accepts(self, version: int, time: int) -> bool:
+        if version == self.accepted_version:
+            return True
+        return any(v == version and time < until for v, until in self.grace)
 
 
 @dataclass(frozen=True, order=True)
@@ -504,7 +514,10 @@ def parse_inventory(raw: Mapping[str, Any]) -> Inventory:
         m = _obj(x, f"{w}.services")
         v = _int(m, "accepted_version", w, minimum=1)
         assert v is not None
-        services.append(DownstreamService(_req(m, "name", w), _req(m, "source_namespace", w), _req(m, "source_secret", w), v))
+        delay = _int(m, "rotation_propagation_seconds", w, optional=True) or 0
+        services.append(
+            DownstreamService(_req(m, "name", w), _req(m, "source_namespace", w), _req(m, "source_secret", w), v, delay)
+        )
     policies = []
     for x in _list(raw.get("admission_policies"), f"{w}.admission_policies"):
         m = _obj(x, f"{w}.admission_policies")
