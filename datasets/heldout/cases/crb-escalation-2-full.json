@@ -1,0 +1,196 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "Both grants removed before purging attacker pods and rotating."
+  ],
+  "bounds": {},
+  "case_id": "crb-escalation-2-full",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-search-builder-0",
+      "id": "builder-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-search-builder",
+      "username": "system:serviceaccount:search:builder"
+    }
+  ],
+  "initial_facts": [
+    {
+      "args": [
+        "builder-token"
+      ],
+      "evidence": [],
+      "kind": "possesses_credential",
+      "status": "assumed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "builder-launch",
+        "namespace": null,
+        "role_kind": "ClusterRole",
+        "role_name": "pod-launcher",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "builder",
+            "namespace": "search"
+          }
+        ]
+      },
+      {
+        "name": "builder-local",
+        "namespace": "search",
+        "role_kind": "ClusterRole",
+        "role_name": "pod-launcher",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "builder",
+            "namespace": "search"
+          }
+        ]
+      },
+      {
+        "name": "vault-sync-db",
+        "namespace": "edge",
+        "role_kind": "Role",
+        "role_name": "db-reader",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "vault-sync",
+            "namespace": "edge"
+          }
+        ]
+      }
+    ],
+    "controllers": [],
+    "pods": [
+      {
+        "name": "builder-0",
+        "namespace": "search",
+        "service_account": "builder",
+        "uid": "pod-search-builder-0"
+      },
+      {
+        "name": "vault-sync-0",
+        "namespace": "edge",
+        "service_account": "vault-sync",
+        "uid": "pod-edge-vault-sync-0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "pod-launcher",
+        "namespace": null,
+        "rules": [
+          {
+            "resources": [
+              "pods"
+            ],
+            "verbs": [
+              "create"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "db-reader",
+        "namespace": "edge",
+        "rules": [
+          {
+            "resource_names": [
+              "db-creds"
+            ],
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "db-creds",
+        "namespace": "edge",
+        "uid": "sec-edge-db",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "builder",
+        "namespace": "search",
+        "uid": "sa-search-builder"
+      },
+      {
+        "name": "vault-sync",
+        "namespace": "edge",
+        "uid": "sa-edge-vault-sync"
+      }
+    ],
+    "services": [
+      {
+        "accepted_version": 1,
+        "name": "ledger",
+        "source_namespace": "edge",
+        "source_secret": "db-creds"
+      }
+    ]
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-edge-db-creds",
+      "kind": "no_secret_read",
+      "namespace": "edge",
+      "secret": "db-creds"
+    },
+    {
+      "id": "protect-ledger",
+      "kind": "no_downstream_use",
+      "service": "ledger"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "remove_binding",
+      "name": "builder-launch"
+    },
+    {
+      "kind": "remove_binding",
+      "name": "builder-local",
+      "namespace": "search"
+    },
+    {
+      "keep_uids": [
+        "pod-edge-vault-sync-0"
+      ],
+      "kind": "delete_pods_except",
+      "namespace": "edge",
+      "service_account": "vault-sync"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "ledger"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
