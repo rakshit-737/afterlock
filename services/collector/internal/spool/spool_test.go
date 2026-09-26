@@ -131,3 +131,28 @@ func TestRefusesCredentialMaterial(t *testing.T) {
 		t.Fatal("spool accepted a forbidden key")
 	}
 }
+
+// Regression (live lab, 2026-09-26): a collector killed before it wrote any record left an
+// empty spool, and the restart went unrecorded.
+func TestRestartWithEmptySpoolStillRecordsGap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s.jsonl")
+	alarms := 0
+	s := open(t, path, 100, &alarms)
+	_ = s.Close()
+
+	s = open(t, path, 100, &alarms)
+	defer s.Close()
+	recs := s.Records()
+	if len(recs) != 1 || recs[0]["gap_kind"] != "collector-restart" {
+		t.Fatalf("records after restart = %v, want one collector-restart gap", recs)
+	}
+}
+
+func TestFirstStartRecordsNoRestartGap(t *testing.T) {
+	alarms := 0
+	s := open(t, filepath.Join(t.TempDir(), "s.jsonl"), 100, &alarms)
+	defer s.Close()
+	if n := len(s.Records()); n != 0 {
+		t.Fatalf("fresh spool has %d records, want 0", n)
+	}
+}
