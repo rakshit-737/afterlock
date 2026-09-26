@@ -1,0 +1,89 @@
+# Synthetic canary relying service (S-SEC-2..4). It accepts exactly one
+# credential: the value in its own Secret "canary-accepted", which lives in a
+# namespace no lab actor can read. The supervisor creates that Secret at
+# runtime with the same synthetic value as demo/release-credential; no value
+# is stored in this file. The server re-reads the mounted file per request, so
+# rotation takes effect once the kubelet refreshes the volume.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: canary
+  labels:
+    afterlock.dev/lab: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: canary-server, namespace: canary, labels: {afterlock.dev/lab: "true"}}
+data:
+  server.py: |
+    import hmac
+    import http.server
+
+    ACCEPTED = "/etc/canary/accepted/value"
+
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/use":
+                self.send_response(404)
+                self.end_headers()
+                return
+            offered = self.headers.get("X-Canary-Credential", "").encode()
+            try:
+                with open(ACCEPTED, "rb") as f:
+                    accepted = f.read().strip()
+            except OSError:
+                accepted = b""
+            ok = bool(accepted) and hmac.compare_digest(offered, accepted)
+            self.send_response(200 if ok else 401)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass  # never log requests: headers carry the credential
+
+
+    http.server.ThreadingHTTPServer(("", 8080), Handler).serve_forever()
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: canary, namespace: canary, labels: {afterlock.dev/lab: "true", app: canary}}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: server
+      image: python:3.12-alpine
+      command: ["python", "-u", "/opt/canary/server.py"]
+      ports: [{containerPort: 8080}]
+      readinessProbe: {tcpSocket: {port: 8080}, periodSeconds: 2}
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
+      volumeMounts:
+        - {name: code, mountPath: /opt/canary, readOnly: true}
+        - {name: accepted, mountPath: /etc/canary/accepted, readOnly: true}
+  volumes:
+    - name: code
+      configMap: {name: canary-server}
+    - name: accepted
+      secret: {secretName: canary-accepted}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: canary, namespace: canary, labels: {afterlock.dev/lab: "true"}}
+spec:
+  selector: {app: canary}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+# Probe client in the demo namespace. It holds no credential; the supervisor
+# passes one on stdin for each request, so no value appears in a command line
+# on the host.
+apiVersion: v1
+kind: Pod
+metadata: {name: canary-probe, namespace: demo, labels: {afterlock.dev/lab: "true", afterlock.dev/actor: probe}}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: c
+      image: busybox:1.36.1
+      command: ["sleep", "86400"]
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
