@@ -70,7 +70,7 @@ jobs:
           if-no-files-found: error
   web:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: services/web
@@ -93,6 +93,31 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      # End-to-end: Playwright starts the real API (in-memory storage, throwaway token) and
+      # `vite preview`, then drives Chromium. See services/web/playwright.config.ts.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.32"
+          activate-environment: true
+      - name: Install API (from uv.lock, frozen) and uvicorn (pinned as in services/api/Dockerfile)
+        working-directory: .
+        run: |
+          uv sync --frozen --extra dev
+          uv pip install "uvicorn==0.30.6"
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests (Playwright + axe)
+        run: npm run e2e
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: services/web/playwright-report
+          retention-days: 7
   postgres:
     # Storage/worker contract tests against a real PostgreSQL. Throwaway credentials, no secrets.
     runs-on: ubuntu-24.04
