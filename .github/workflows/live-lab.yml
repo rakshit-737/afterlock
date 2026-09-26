@@ -24,6 +24,12 @@ jobs:
         with:
           version: "0.11.32"
           activate-environment: true
+      # Tag v5.6.0 -> commit 40f1582b..., checked with
+      # `gh api repos/actions/setup-go/git/ref/tags/v5.6.0` (object type: commit); same pin as ci.yml.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: services/collector/go.mod
+          cache-dependency-path: services/collector/go.sum
       - name: Install AFTERLOCK (from uv.lock, frozen)
         run: uv sync --frozen --extra dev
       - name: Install kind and kubectl (pinned versions, checksum-verified)
@@ -44,6 +50,26 @@ jobs:
         run: scripts/lab create
       - name: Semantic spike (reset + spike, 3 runs)
         run: AFTERLOCK_LIVE_LAB=1 AFTERLOCK_LAB_REPEAT=3 python -m pytest -q tests/conformance -rs
+      - name: Build collector (verified modules, local toolchain)
+        working-directory: services/collector
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go mod verify
+          go build -trimpath -o "$RUNNER_TEMP/afterlock-collector" ./cmd/afterlock-collector
+      - name: Collector run against the lab (reset + spike + collect)
+        env:
+          AFTERLOCK_COLLECTOR_BIN: ${{ runner.temp }}/afterlock-collector
+        run: scripts/lab collect
+      # Reached only when `collect` succeeded, which requires a clean leak scan: the
+      # supervisor keeps a bundle under labs/collected/ only after the scan passes.
+      - name: Upload collected bundle (leak scan passed)
+        if: success() && hashFiles('labs/collected/**/manifest.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: collected-bundle
+          path: labs/collected/
+          if-no-files-found: error
       - name: Derive lab labels from receipts
         if: always()
         run: python benchmarks/lab_labels.py
