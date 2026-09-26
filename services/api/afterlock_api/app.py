@@ -208,7 +208,11 @@ def create_app(token_spec: str | None = None) -> FastAPI:
         c = get_case(case_id, p)
         if not p.may_analyze(c["cluster_id"]):
             raise HTTPException(403, "analyst role for this cluster required")
-        return plan(parse_analysis_input(c["input"]), PlannerConfig(max_length=body.max_length, max_evaluations=body.max_evaluations))
+        try:
+            inp = parse_analysis_input(c["input"])
+        except ModelError as exc:
+            raise HTTPException(422, {"conclusion": "invalid_input", "error": str(exc)}) from exc
+        return plan(inp, PlannerConfig(max_length=body.max_length, max_evaluations=body.max_evaluations))
 
     @app.api_route("/v1/lab/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
     def lab(path: str, p: Principal = Depends(principal)) -> None:
