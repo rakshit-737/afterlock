@@ -4,6 +4,8 @@
 [![live-lab](https://github.com/rakshit-737/afterlock/actions/workflows/live-lab.yml/badge.svg)](https://github.com/rakshit-737/afterlock/actions/workflows/live-lab.yml)
 [![License](https://img.shields.io/github/license/rakshit-737/afterlock)](LICENSE)
 
+Documentation site: <https://rakshit-737.github.io/afterlock/> (built from `docs/` by `.github/workflows/docs.yml`).
+
 
 AFTERLOCK is an open-source, evidence-backed **containment verifier** for Kubernetes
 workload identities. It models permissions, previously acquired credentials,
