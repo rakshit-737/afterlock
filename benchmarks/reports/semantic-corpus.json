@@ -500,7 +500,16 @@
       "spike-20260926T062752Z.json",
       "spike-20260926T073847Z-r1.json",
       "spike-20260926T073847Z-r2.json",
-      "spike-20260926T073847Z-r3.json"
+      "spike-20260926T073847Z-r3.json",
+      "spike-20260926T105229Z-r1.json",
+      "spike-20260926T105229Z-r2.json",
+      "spike-20260926T105229Z-r3.json",
+      "spike-20260926T124305Z-r1.json",
+      "spike-20260926T124305Z-r2.json",
+      "spike-20260926T124305Z-r3.json",
+      "spike-20260926T132141Z-r1.json",
+      "spike-20260926T132141Z-r2.json",
+      "spike-20260926T132141Z-r3.json"
     ],
     "disputed": 0,
     "summary": {
@@ -526,7 +535,7 @@
         "case": "admission-denied",
         "objective": "protect-secret",
         "label": "satisfied_within_scope",
-        "evidence": 5,
+        "evidence": 14,
         "predicted": {
           "full": "satisfied_within_scope",
           "snapshot_only": "satisfied_within_scope",
@@ -538,7 +547,7 @@
         "case": "copied-downstream",
         "objective": "protect-canary",
         "label": "violated",
-        "evidence": 4,
+        "evidence": 13,
         "predicted": {
           "full": "violated",
           "snapshot_only": "satisfied_within_scope",
@@ -550,7 +559,7 @@
         "case": "residual-token",
         "objective": "protect-canary",
         "label": "violated",
-        "evidence": 4,
+        "evidence": 13,
         "predicted": {
           "full": "violated",
           "snapshot_only": "satisfied_within_scope",
@@ -562,7 +571,7 @@
         "case": "residual-token",
         "objective": "protect-secret",
         "label": "violated",
-        "evidence": 5,
+        "evidence": 14,
         "predicted": {
           "full": "violated",
           "snapshot_only": "satisfied_within_scope",
@@ -574,7 +583,7 @@
         "case": "targeted-containment",
         "objective": "legitimate:release-canary",
         "label": "preserved",
-        "evidence": 4,
+        "evidence": 13,
         "predicted": {
           "full": "preserved",
           "snapshot_only": "preserved",
@@ -586,7 +595,7 @@
         "case": "targeted-containment",
         "objective": "protect-canary",
         "label": "satisfied_within_scope",
-        "evidence": 4,
+        "evidence": 13,
         "predicted": {
           "full": "satisfied_within_scope",
           "snapshot_only": "satisfied_within_scope",
