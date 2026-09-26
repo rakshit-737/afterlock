@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"unicode/utf8"
@@ -23,7 +24,9 @@ const Placeholder = "[redacted]"
 
 var sensitive = []*regexp.Regexp{
 	regexp.MustCompile(`eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`), // JWT
+	regexp.MustCompile(`ZXlK[A-Za-z0-9+/_-]{16,}`),                // base64 of a JWT ("eyJ" -> "ZXlK")
 	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`),
+	regexp.MustCompile(`LS0tLS1CRUdJTi`), // base64 of "-----BEGIN"
 	regexp.MustCompile(`AFTERLOCK-CANARY-[A-Za-z0-9]+`), // seeded redaction canaries
 	regexp.MustCompile(`(?i)bearer\s+[A-Za-z0-9._~+/=-]{8,}`),
 }
@@ -36,16 +39,69 @@ var ForbiddenKeys = map[string]bool{
 	"requestobject": true, "credential_value": true,
 }
 
+// forbiddenKeySuffixes mirrors evidence.FORBIDDEN_KEY_SUFFIXES: a key is
+// normalized to lowercase alphanumerics (accessToken, id_token, client-secret).
+var forbiddenKeySuffixes = []string{"token", "password", "secretvalue", "clientsecret", "secretkey", "apikey", "privatekey", "accesskey", "authorization"}
+
+// ForbiddenKey reports whether a JSON key names credential or payload material.
+func ForbiddenKey(k string) bool {
+	lower := strings.ToLower(k)
+	var b strings.Builder
+	for _, r := range lower {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	norm := b.String()
+	if ForbiddenKeys[lower] || ForbiddenKeys[norm] {
+		return true
+	}
+	for _, s := range forbiddenKeySuffixes {
+		if strings.HasSuffix(norm, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// percentDecode decodes every valid %XX escape and leaves invalid ones as they
+// are (like Python's urllib.parse.unquote), so one malformed escape cannot
+// switch decoding off for the rest of the value.
+func percentDecode(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]) {
+			v, _ := strconv.ParseUint(s[i+1:i+3], 16, 8)
+			b.WriteByte(byte(v))
+			i += 2
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
 var redactions atomic.Int64
 
 // Redactions reports how many values have been replaced since process start.
 func Redactions() int64 { return redactions.Load() }
 
-// Sensitive reports whether s resembles credential material.
+// Sensitive reports whether s, or its percent-decoded form, resembles
+// credential material.
 func Sensitive(s string) bool {
-	for _, re := range sensitive {
-		if re.MatchString(s) {
-			return true
+	candidates := []string{s}
+	if strings.Contains(s, "%") {
+		candidates = append(candidates, percentDecode(s))
+	}
+	for _, c := range candidates {
+		for _, re := range sensitive {
+			if re.MatchString(c) {
+				return true
+			}
 		}
 	}
 	return false
@@ -85,7 +141,7 @@ func walk(v any, path string, problems *[]string) {
 	switch t := v.(type) {
 	case map[string]any:
 		for k, x := range t {
-			if ForbiddenKeys[strings.ToLower(k)] {
+			if ForbiddenKey(k) {
 				*problems = append(*problems, fmt.Sprintf("%s.%s: forbidden key", path, k))
 				continue
 			}
