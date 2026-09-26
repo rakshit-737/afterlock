@@ -60,7 +60,10 @@ def analysis_inputs(draw: Any, max_actions: int = 3) -> dict[str, Any]:
     secrets = [{"namespace": NS, "name": "sec0", "uid": "sec-0", "version": 1}]
     if draw(st.booleans()):
         secrets.append({"namespace": NS, "name": "sec1", "uid": "sec-1", "version": 1})
-    services = [{"name": "svc0", "source_namespace": NS, "source_secret": "sec0", "accepted_version": 1}]
+    services: list[dict[str, Any]] = [{"name": "svc0", "source_namespace": NS, "source_secret": "sec0", "accepted_version": 1}]
+    delay = draw(st.sampled_from([0, 0, 60, 2000]))  # S-SEC-5 propagation delay
+    if delay:
+        services[0]["rotation_propagation_seconds"] = delay
     admission = []
     adm = draw(st.sampled_from(["none", "restrict", "unsupported"]))
     if adm == "restrict":
@@ -97,7 +100,8 @@ def analysis_inputs(draw: Any, max_actions: int = 3) -> dict[str, Any]:
     vocab += [{"kind": "delete_pods_except", "namespace": NS, "service_account": s, "keep_uids": []} for s in SAS]
     vocab += [{"kind": "delete_controllers_except", "namespace": NS, "service_account": s, "keep_uids": []} for s in SAS]
     vocab += [{"kind": "delete_service_account", "namespace": NS, "name": s} for s in SAS]
-    vocab += [{"kind": "rotate_downstream_credential", "service": "svc0"}, {"kind": "wait", "seconds": 1000}]
+    vocab += [{"kind": "rotate_downstream_credential", "service": "svc0"}, {"kind": "wait", "seconds": 1000},
+              {"kind": "wait", "seconds": 90}]
     remediation = draw(st.lists(st.sampled_from(vocab), max_size=max_actions))
 
     return {
