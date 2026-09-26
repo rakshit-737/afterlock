@@ -137,7 +137,57 @@ func (s *Store) Replace(kind string, items map[string]any) {
 	s.synced[kind] = true
 }
 
-// Synced reports whether kind completed at least one list.
+// SyncKey names a (kind, namespace) list/watch scope; namespace "" is
+// cluster-wide and keyed by the kind alone.
+func SyncKey(kind, namespace string) string {
+	if namespace == "" {
+		return kind
+	}
+	return kind + "/" + namespace
+}
+
+func namespaceOf(item any) (string, bool) {
+	switch v := item.(type) {
+	case Pod:
+		return v.Namespace, true
+	case Named:
+		return v.Namespace, true
+	case Role:
+		return v.Namespace, true
+	case Binding:
+		return v.Namespace, true
+	case Secret:
+		return v.Namespace, true
+	}
+	return "", false
+}
+
+// ReplaceIn installs the result of a (re)list scoped to one namespace:
+// only objects of kind in that namespace are replaced. namespace "" is
+// equivalent to Replace.
+func (s *Store) ReplaceIn(kind, namespace string, items map[string]any) {
+	if namespace == "" {
+		s.Replace(kind, items)
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.objs[kind] == nil {
+		s.objs[kind] = map[string]any{}
+	}
+	for uid, item := range s.objs[kind] {
+		if ns, ok := namespaceOf(item); ok && ns == namespace {
+			delete(s.objs[kind], uid)
+		}
+	}
+	for uid, item := range items {
+		s.objs[kind][uid] = item
+		s.observeLocked(kind, uid, item)
+	}
+	s.synced[SyncKey(kind, namespace)] = true
+}
+
+// Synced reports whether a sync key (see SyncKey) completed at least one list.
 func (s *Store) Synced(kind string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
