@@ -1,0 +1,10 @@
+{
+  "case_id": "admission-unsupported",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:688f47abc095c85df556f304f5e6585dd2ad8549e9ca83e606650cd618128386",
+    "events.jsonl": "sha256:d666171ce91a54e1b40e1cb7b0645f9fa13767bbf631df841b7abb06ebe2970c",
+    "inventory.json": "sha256:f34910008c0035754188132b9e5f59e80fe9537db20c924c3df3c5f9d3420c8c"
+  },
+  "schema": "afterlock.replay/1"
+}
