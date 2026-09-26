@@ -1,0 +1,144 @@
+{
+  "_comment": "Derived from observed HTTP statuses in labs/receipts only; model predictions are not read. Regenerate with python benchmarks/lab_labels.py. Do not edit by hand.",
+  "label_source": "live-lab observations",
+  "receipts": [
+    "spike-20260926T054738Z.json",
+    "spike-20260926T062752Z.json"
+  ],
+  "labels": {
+    "admission-denied": {
+      "protect-secret": {
+        "evidence": [
+          {
+            "receipt": "spike-20260926T054738Z.json",
+            "step": "negative-control-admission-denies",
+            "observed_http_status": 422
+          },
+          {
+            "receipt": "spike-20260926T062752Z.json",
+            "step": "negative-control-admission-denies",
+            "observed_http_status": 422
+          }
+        ],
+        "label": "satisfied_within_scope"
+      }
+    },
+    "copied-downstream": {
+      "protect-canary": {
+        "evidence": [
+          {
+            "receipt": "spike-20260926T062752Z.json",
+            "step": "copied-credential-survives-kubernetes-containment",
+            "observed_http_status": 200
+          }
+        ],
+        "label": "violated"
+      }
+    },
+    "residual-token": {
+      "protect-canary": {
+        "evidence": [
+          {
+            "receipt": "spike-20260926T062752Z.json",
+            "step": "copied-credential-accepted-by-canary",
+            "observed_http_status": 200
+          }
+        ],
+        "label": "violated"
+      },
+      "protect-secret": {
+        "evidence": [
+          {
+            "receipt": "spike-20260926T054738Z.json",
+            "step": "residual-token-still-reads-secret",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T062752Z.json",
+            "step": "residual-token-still-reads-secret",
+            "observed_http_status": 200
+          }
+        ],
+        "label": "violated"
+      }
+    },
+    "targeted-containment": {
+      "legitimate:release-canary": {
+        "evidence": [
+          {
+            "receipt": "spike-20260926T062752Z.json",
+            "step": "legitimate-workload-uses-rotated-credential",
+            "observed_http_status": 200
+          }
+        ],
+        "label": "preserved"
+      },
+      "protect-canary": {
+        "evidence": [
+          {
+            "receipt": "spike-20260926T062752Z.json",
+            "step": "copied-credential-rejected-after-rotation",
+            "observed_http_status": 401
+          }
+        ],
+        "label": "satisfied_within_scope"
+      }
+    }
+  },
+  "unlabeled": [
+    {
+      "receipt": "spike-20260926T054738Z.json",
+      "step": "ci-creates-release-reader-pod",
+      "observed_http_status": 201,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T054738Z.json",
+      "step": "attacker-reads-secret",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T054738Z.json",
+      "step": "ci-creation-blocked-after-binding-removal",
+      "observed_http_status": 403,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T054738Z.json",
+      "step": "bound-token-rejected-after-pod-deletion",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T062752Z.json",
+      "step": "ci-creates-release-reader-pod",
+      "observed_http_status": 201,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T062752Z.json",
+      "step": "attacker-reads-secret",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T062752Z.json",
+      "step": "ci-creation-blocked-after-binding-removal",
+      "observed_http_status": 403,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T062752Z.json",
+      "step": "bound-token-rejected-after-pod-deletion",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T062752Z.json",
+      "step": "rotation-acknowledged-by-canary",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    }
+  ]
+}
