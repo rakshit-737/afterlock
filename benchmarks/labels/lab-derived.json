@@ -3,7 +3,10 @@
   "label_source": "live-lab observations",
   "receipts": [
     "spike-20260926T054738Z.json",
-    "spike-20260926T062752Z.json"
+    "spike-20260926T062752Z.json",
+    "spike-20260926T073847Z-r1.json",
+    "spike-20260926T073847Z-r2.json",
+    "spike-20260926T073847Z-r3.json"
   ],
   "labels": {
     "admission-denied": {
@@ -18,6 +21,21 @@
             "receipt": "spike-20260926T062752Z.json",
             "step": "negative-control-admission-denies",
             "observed_http_status": 422
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r1.json",
+            "step": "negative-control-admission-denies",
+            "observed_http_status": 422
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r2.json",
+            "step": "negative-control-admission-denies",
+            "observed_http_status": 422
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r3.json",
+            "step": "negative-control-admission-denies",
+            "observed_http_status": 422
           }
         ],
         "label": "satisfied_within_scope"
@@ -30,6 +48,21 @@
             "receipt": "spike-20260926T062752Z.json",
             "step": "copied-credential-survives-kubernetes-containment",
             "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r1.json",
+            "step": "copied-credential-survives-kubernetes-containment",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r2.json",
+            "step": "copied-credential-survives-kubernetes-containment",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r3.json",
+            "step": "copied-credential-survives-kubernetes-containment",
+            "observed_http_status": 200
           }
         ],
         "label": "violated"
@@ -40,6 +73,21 @@
         "evidence": [
           {
             "receipt": "spike-20260926T062752Z.json",
+            "step": "copied-credential-accepted-by-canary",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r1.json",
+            "step": "copied-credential-accepted-by-canary",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r2.json",
+            "step": "copied-credential-accepted-by-canary",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r3.json",
             "step": "copied-credential-accepted-by-canary",
             "observed_http_status": 200
           }
@@ -57,6 +105,21 @@
             "receipt": "spike-20260926T062752Z.json",
             "step": "residual-token-still-reads-secret",
             "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r1.json",
+            "step": "residual-token-still-reads-secret",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r2.json",
+            "step": "residual-token-still-reads-secret",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r3.json",
+            "step": "residual-token-still-reads-secret",
+            "observed_http_status": 200
           }
         ],
         "label": "violated"
@@ -69,6 +132,21 @@
             "receipt": "spike-20260926T062752Z.json",
             "step": "legitimate-workload-uses-rotated-credential",
             "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r1.json",
+            "step": "legitimate-workload-uses-rotated-credential",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r2.json",
+            "step": "legitimate-workload-uses-rotated-credential",
+            "observed_http_status": 200
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r3.json",
+            "step": "legitimate-workload-uses-rotated-credential",
+            "observed_http_status": 200
           }
         ],
         "label": "preserved"
@@ -77,6 +155,21 @@
         "evidence": [
           {
             "receipt": "spike-20260926T062752Z.json",
+            "step": "copied-credential-rejected-after-rotation",
+            "observed_http_status": 401
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r1.json",
+            "step": "copied-credential-rejected-after-rotation",
+            "observed_http_status": 401
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r2.json",
+            "step": "copied-credential-rejected-after-rotation",
+            "observed_http_status": 401
+          },
+          {
+            "receipt": "spike-20260926T073847Z-r3.json",
             "step": "copied-credential-rejected-after-rotation",
             "observed_http_status": 401
           }
@@ -136,6 +229,168 @@
     },
     {
       "receipt": "spike-20260926T062752Z.json",
+      "step": "rotation-acknowledged-by-canary",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "ci-creates-release-reader-pod",
+      "observed_http_status": 201,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "attacker-reads-secret",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "isolation-control-canary-answers-demo",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "isolation-outsider-cannot-reach-canary",
+      "observed_http_status": 0,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "isolation-control-outsider-answers-demo",
+      "observed_http_status": 404,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "isolation-attacker-egress-to-outsider-denied",
+      "observed_http_status": 0,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "ci-creation-blocked-after-binding-removal",
+      "observed_http_status": 403,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "bound-token-rejected-after-pod-deletion",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r1.json",
+      "step": "rotation-acknowledged-by-canary",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "ci-creates-release-reader-pod",
+      "observed_http_status": 201,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "attacker-reads-secret",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "isolation-control-canary-answers-demo",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "isolation-outsider-cannot-reach-canary",
+      "observed_http_status": 0,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "isolation-control-outsider-answers-demo",
+      "observed_http_status": 404,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "isolation-attacker-egress-to-outsider-denied",
+      "observed_http_status": 0,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "ci-creation-blocked-after-binding-removal",
+      "observed_http_status": 403,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "bound-token-rejected-after-pod-deletion",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r2.json",
+      "step": "rotation-acknowledged-by-canary",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "ci-creates-release-reader-pod",
+      "observed_http_status": 201,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "attacker-reads-secret",
+      "observed_http_status": 200,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "isolation-control-canary-answers-demo",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "isolation-outsider-cannot-reach-canary",
+      "observed_http_status": 0,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "isolation-control-outsider-answers-demo",
+      "observed_http_status": 404,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "isolation-attacker-egress-to-outsider-denied",
+      "observed_http_status": 0,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "ci-creation-blocked-after-binding-removal",
+      "observed_http_status": 403,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
+      "step": "bound-token-rejected-after-pod-deletion",
+      "observed_http_status": 401,
+      "reason": "step not mapped to a replay case"
+    },
+    {
+      "receipt": "spike-20260926T073847Z-r3.json",
       "step": "rotation-acknowledged-by-canary",
       "observed_http_status": 200,
       "reason": "step not mapped to a replay case"
