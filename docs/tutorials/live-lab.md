@@ -1,9 +1,11 @@
 # Live lab: semantic spike
 
-**Status:** the 11-step spike has receipts (`labs/receipts/spike-20260926T*.json`,
-single runs, kindnet CNI). The network-isolation steps, `reset`, `--repeat`, Calico, the
-digest-pinned node image, and the lowered kubelet sync period are **written, not yet
-executed**; see `docs/engineering/verification.md` for what has actually run.
+**Status:** executed in the `live-lab` workflow. The latest run (36244828581) recorded
+`spike --repeat 3` with 17/17 steps agreeing in every run
+(`labs/receipts/spike-summary-20260926T132141Z.json`; Calico, digest-pinned node image,
+`syncFrequency: 10s`, network-isolation steps, `reset`) and a `lab_confirmed` collector run
+(`collect-20260926T132806Z.json`). One Kubernetes version (v1.31.4), one idle single-node
+cluster; see `docs/engineering/verification.md` for what has actually run.
 
 ## Requirements
 
@@ -88,7 +90,7 @@ period. `cluster.yaml` lowers `syncFrequency` to 10 s for the lab; the delay is 
 measured and recorded in every receipt, and it is a property of this lab configuration,
 not of Kubernetes in general.
 
-### S-SEC-5 receipt (written, not yet executed)
+### S-SEC-5 receipt (lab-confirmed: 3/3 runs, `spike-summary-20260926T132141Z.json`)
 
 Right after the rotation is written, the supervisor probes the old value once, then polls
 new and old every ~2 s until the new value is accepted and the old one refused. That
@@ -114,9 +116,8 @@ the step disagrees and the run is `lab_contradicted` rather than passing.
 
 ## Collector run (`collect`)
 
-**Status:** the first window (residual-token) is lab-confirmed
-(`labs/receipts/collect-20260926T105833Z.json`); the second window (targeted containment)
-and the S-SEC-5 steps are written, not yet executed. `scripts/lab collect` runs `reset`, then the spike
+**Status:** both windows (residual-token and targeted containment) and the S-SEC-5 steps are
+lab-confirmed (`labs/receipts/collect-20260926T132806Z.json`, 28/28 checks, run 36244828581). `scripts/lab collect` runs `reset`, then the spike
 with the Go collector (`services/collector`) running on the host:
 
 1. `labs/kind/cluster.yaml` enables API server audit logging with
@@ -135,7 +136,7 @@ with the Go collector (`services/collector`) running on the host:
    ingests the audit log, relists inventory and writes the `afterlock.replay/1` bundle with a
    case derived from `datasets/replay/residual-token/case.json` (live UIDs; the downstream
    canary objective is dropped because the collector does not observe services).
-5. Second window (written, not yet executed): right after C, process D starts on a
+5. Second window: right after C, process D starts on a
    **fresh spool** (no injected restart) with a case derived from
    `datasets/replay/targeted-containment/case.json`, while the attacker Pod still exists.
    This matters: the audit log has no Pod UIDs, and the collector correlates a Pod creation
