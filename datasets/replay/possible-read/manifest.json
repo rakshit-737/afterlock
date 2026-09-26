@@ -1,0 +1,10 @@
+{
+  "case_id": "possible-read",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:6c8f81a5791e4ebe131b7cea3be7f61cb4d006228e81274975fe76b69effa021",
+    "events.jsonl": "sha256:1751c9f3819d27fff294be5aa48c6bab77ddee4830b2f9d83c4c72c3ea326849",
+    "inventory.json": "sha256:b83e3a37ecf28d96c3fa5b1135cd880fece368c85f7692841a87a77056343829"
+  },
+  "schema": "afterlock.replay/1"
+}
