@@ -1,0 +1,562 @@
+{
+  "label_source": "hand-authored expectations (not lab-validated)",
+  "environment": {
+    "python": "3.11.15",
+    "platform": "Linux-6.18.44-fc-v37-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "afterlock": "0.1.0",
+    "repeat": 3
+  },
+  "summary": {
+    "full": {
+      "cases": 16,
+      "agreement": 16,
+      "containment_claims": 6,
+      "false_containment_claims": 0,
+      "residual_recall": "8/8",
+      "decisions": 14,
+      "deterministic": true
+    },
+    "snapshot_only": {
+      "cases": 16,
+      "agreement": 11,
+      "containment_claims": 11,
+      "false_containment_claims": 5,
+      "residual_recall": "3/8",
+      "decisions": 14,
+      "deterministic": true
+    },
+    "history_without_lifecycle": {
+      "cases": 16,
+      "agreement": 10,
+      "containment_claims": 1,
+      "false_containment_claims": 0,
+      "residual_recall": "8/8",
+      "decisions": 15,
+      "deterministic": true
+    },
+    "final_state_only": {
+      "cases": 16,
+      "agreement": 15,
+      "containment_claims": 7,
+      "false_containment_claims": 1,
+      "residual_recall": "7/8",
+      "decisions": 14,
+      "deterministic": true
+    }
+  },
+  "rows": [
+    {
+      "case": "admission-denied",
+      "mode": "full",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.673
+    },
+    {
+      "case": "admission-denied",
+      "mode": "snapshot_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.479
+    },
+    {
+      "case": "admission-denied",
+      "mode": "history_without_lifecycle",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.519
+    },
+    {
+      "case": "admission-denied",
+      "mode": "final_state_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.458
+    },
+    {
+      "case": "admission-unsupported",
+      "mode": "full",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 0.247
+    },
+    {
+      "case": "admission-unsupported",
+      "mode": "snapshot_only",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 0.193
+    },
+    {
+      "case": "admission-unsupported",
+      "mode": "history_without_lifecycle",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 0.2
+    },
+    {
+      "case": "admission-unsupported",
+      "mode": "final_state_only",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 0.194
+    },
+    {
+      "case": "alternative-binding",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 3.591
+    },
+    {
+      "case": "alternative-binding",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.84
+    },
+    {
+      "case": "alternative-binding",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 4.326
+    },
+    {
+      "case": "alternative-binding",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.916
+    },
+    {
+      "case": "audience-mismatch",
+      "mode": "full",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.136
+    },
+    {
+      "case": "audience-mismatch",
+      "mode": "snapshot_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.103
+    },
+    {
+      "case": "audience-mismatch",
+      "mode": "history_without_lifecycle",
+      "expected": "contained_within_scope",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.249
+    },
+    {
+      "case": "audience-mismatch",
+      "mode": "final_state_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.123
+    },
+    {
+      "case": "controller-contained",
+      "mode": "full",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 3.316
+    },
+    {
+      "case": "controller-contained",
+      "mode": "snapshot_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.241
+    },
+    {
+      "case": "controller-contained",
+      "mode": "history_without_lifecycle",
+      "expected": "contained_within_scope",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 4.429
+    },
+    {
+      "case": "controller-contained",
+      "mode": "final_state_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.208
+    },
+    {
+      "case": "controller-replacement",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 4.937
+    },
+    {
+      "case": "controller-replacement",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.194
+    },
+    {
+      "case": "controller-replacement",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 4.399
+    },
+    {
+      "case": "controller-replacement",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.591
+    },
+    {
+      "case": "copied-downstream",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 1.96
+    },
+    {
+      "case": "copied-downstream",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.212
+    },
+    {
+      "case": "copied-downstream",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 2.2
+    },
+    {
+      "case": "copied-downstream",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.297
+    },
+    {
+      "case": "defender-race",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 2.781
+    },
+    {
+      "case": "defender-race",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.176
+    },
+    {
+      "case": "defender-race",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 3.692
+    },
+    {
+      "case": "defender-race",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.259
+    },
+    {
+      "case": "incomplete-telemetry",
+      "mode": "full",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 2.16
+    },
+    {
+      "case": "incomplete-telemetry",
+      "mode": "snapshot_only",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 0.202
+    },
+    {
+      "case": "incomplete-telemetry",
+      "mode": "history_without_lifecycle",
+      "expected": "unknown",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 2.908
+    },
+    {
+      "case": "incomplete-telemetry",
+      "mode": "final_state_only",
+      "expected": "unknown",
+      "predicted": "unknown",
+      "deterministic": true,
+      "median_ms": 0.31
+    },
+    {
+      "case": "no-admission-control",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.783
+    },
+    {
+      "case": "no-admission-control",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.779
+    },
+    {
+      "case": "no-admission-control",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.787
+    },
+    {
+      "case": "no-admission-control",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.784
+    },
+    {
+      "case": "possible-read",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.368
+    },
+    {
+      "case": "possible-read",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.132
+    },
+    {
+      "case": "possible-read",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.396
+    },
+    {
+      "case": "possible-read",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.378
+    },
+    {
+      "case": "residual-token",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 1.85
+    },
+    {
+      "case": "residual-token",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.154
+    },
+    {
+      "case": "residual-token",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 1.893
+    },
+    {
+      "case": "residual-token",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.501
+    },
+    {
+      "case": "same-name-recreation",
+      "mode": "full",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.414
+    },
+    {
+      "case": "same-name-recreation",
+      "mode": "snapshot_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.131
+    },
+    {
+      "case": "same-name-recreation",
+      "mode": "history_without_lifecycle",
+      "expected": "contained_within_scope",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.553
+    },
+    {
+      "case": "same-name-recreation",
+      "mode": "final_state_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.414
+    },
+    {
+      "case": "targeted-containment",
+      "mode": "full",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 2.086
+    },
+    {
+      "case": "targeted-containment",
+      "mode": "snapshot_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.174
+    },
+    {
+      "case": "targeted-containment",
+      "mode": "history_without_lifecycle",
+      "expected": "contained_within_scope",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 2.703
+    },
+    {
+      "case": "targeted-containment",
+      "mode": "final_state_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.292
+    },
+    {
+      "case": "token-expiry-active",
+      "mode": "full",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.305
+    },
+    {
+      "case": "token-expiry-active",
+      "mode": "snapshot_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.245
+    },
+    {
+      "case": "token-expiry-active",
+      "mode": "history_without_lifecycle",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.243
+    },
+    {
+      "case": "token-expiry-active",
+      "mode": "final_state_only",
+      "expected": "residual_path",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.273
+    },
+    {
+      "case": "token-expiry-wait",
+      "mode": "full",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.316
+    },
+    {
+      "case": "token-expiry-wait",
+      "mode": "snapshot_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.114
+    },
+    {
+      "case": "token-expiry-wait",
+      "mode": "history_without_lifecycle",
+      "expected": "contained_within_scope",
+      "predicted": "residual_path",
+      "deterministic": true,
+      "median_ms": 0.371
+    },
+    {
+      "case": "token-expiry-wait",
+      "mode": "final_state_only",
+      "expected": "contained_within_scope",
+      "predicted": "contained_within_scope",
+      "deterministic": true,
+      "median_ms": 0.122
+    }
+  ]
+}
