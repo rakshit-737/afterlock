@@ -57,6 +57,21 @@ def test_reads_by_a_pod_of_an_attacker_created_controller_are_attributed(tmp_pat
     assert facts[("knows_secret", ("demo", "release-credential", "1"))]["status"] == "observed"
 
 
+@pytest.mark.parametrize("verb", ["list", "watch"])
+def test_attacker_list_of_secrets_is_observed_knowledge(tmp_path: Path, verb: str) -> None:
+    """E-4 (with A-3): a successful list/watch of Secrets returns their data; the
+    projector only recorded knowledge for get."""
+    d = _copy(tmp_path)
+    evs = _events(d)
+    read = next(e for e in evs if e.get("action", {}).get("resource") == "secrets")
+    evs.remove(read)
+    evs.append(dict(read, action=dict(read["action"], verb=verb), target={}))
+    _write(d, events=evs)
+    raw, _ = project(ReplayBundle.load(d))
+    facts = {(f["kind"], tuple(f["args"])): f for f in raw["initial_facts"]}
+    assert facts[("knows_secret", ("demo", "release-credential", "1"))]["status"] == "observed"
+
+
 # ---------------------------------------------------------------- timestamps
 
 
