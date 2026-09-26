@@ -161,6 +161,7 @@ class _Run:
         self.profile = inp.profile
         self.count = 0
         self.unknowns: dict[str, dict[str, Any]] = {}
+        self.in_history = False  # set while saturating the possible-history phase
 
     # -- bookkeeping -------------------------------------------------------
     def _tick(self) -> None:
@@ -171,8 +172,24 @@ class _Run:
     def _unknown(self, key: str, record: dict[str, Any]) -> None:
         self.unknowns.setdefault(key, record)
 
+    def _use_time(self, env: Env, cred: CredentialSpec) -> int:
+        """When a use of ``cred`` is evaluated (S-TOK-1).
+
+        In the main phases, at the interval's time. In the possible-history phase, at
+        the latest instant of ``[history_start, analysis_time]`` at which a hypothetical
+        use could have occurred: ``analysis_time`` if the credential is still unexpired
+        then, else the last second before expiry. If that lies before ``history_start``
+        the credential was never valid inside the window and the check fails there.
+        """
+        if not self.in_history or cred.expires_at is None or cred.expires_at > env.time:
+            return env.time
+        start = self.inp.history_start
+        last_valid = cred.expires_at - 1
+        return start if start is not None and last_valid < start else last_valid
+
     def _usable(self, env: Env, cred: CredentialSpec) -> tuple[bool, dict[str, Any]]:
-        u = credential_usable(env, cred, self.profile)
+        at = self._use_time(env, cred)
+        u = credential_usable(env, cred, self.profile, at=at)
         if not u.supported:
             self._unknown(
                 f"cred:{cred.id}",
@@ -182,7 +199,7 @@ class _Run:
         usable = u.usable
         if self.mode == MODE_NO_LIFECYCLE:
             usable = True  # baseline: ignores expiry, audience and bound-object checks
-        cond = {"check": "credential_usable", "credential": cred.id, "time": env.time, "detail": "; ".join(u.reasons)}
+        cond = {"check": "credential_usable", "credential": cred.id, "time": at, "detail": "; ".join(u.reasons)}
         return usable, cond
 
     # -- initial state ------------------------------------------------------
@@ -404,7 +421,10 @@ def run_view(inp: AnalysisInput, view: str, mode: str = MODE_FULL) -> ViewOutcom
     goals_final: dict[Fact, Derivation] = {}
     bounds_exceeded = False
     try:
-        if view == VIEW_POSSIBLE and historical:
+        # S-TOK-1 in possible history: a seeded credential that expired by analysis time
+        # was usable earlier in the window, so the phase also runs for such credentials.
+        expired_seed = any(c.expires_at is not None and c.expires_at <= inp.analysis_time for c in att.creds.values())
+        if view == VIEW_POSSIBLE and (historical or expired_seed):
             # Possible history: absence of audit records does not prove absence of
             # activity. Before analysis time the attacker could have done anything the
             # (assumed unchanged) environment allowed, including through controlled Pods
@@ -420,7 +440,9 @@ def run_view(inp: AnalysisInput, view: str, mode: str = MODE_FULL) -> ViewOutcom
                     Derivation(("controls_pod", uid), "EVIDENCE", INITIAL_INTERVAL, (), (), EPISTEMIC_OBSERVED,
                                note="historically controlled pod"),
                 )
+            run.in_history = True
             run.closure(att, henv, HISTORY_INTERVAL)
+            run.in_history = False
         actions = list(inp.remediation)
         if mode in (MODE_FINAL_STATE, MODE_SNAPSHOT):
             # baselines: evaluate only the final configuration, no interleaving
