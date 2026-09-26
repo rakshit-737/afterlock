@@ -169,7 +169,7 @@ def attacker_pod(name: str, sa: str) -> dict[str, Any]:
             "serviceAccountName": sa,
             "securityContext": {"runAsNonRoot": True, "runAsUser": 65534, "seccompProfile": {"type": "RuntimeDefault"}},
             "containers": [{
-                "name": "c", "image": "busybox:1.36.1", "command": ["sleep", "3600"],
+                "name": "c", "image": "busybox:1.36.1@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662", "command": ["sleep", "3600"],
                 "securityContext": {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True, "capabilities": {"drop": ["ALL"]}},
             }],
         },
