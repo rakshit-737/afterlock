@@ -1,6 +1,6 @@
 # Engineering status
 
-_Last updated: 2026-09-26 (first live-lab receipt, version 0.1.0)._
+_Last updated: 2026-09-26 (canary service in live lab, version 0.1.0)._
 
 ## Milestone map (phases from docs/research/original-design.md)
 
@@ -12,7 +12,7 @@ _Last updated: 2026-09-26 (first live-lab receipt, version 0.1.0)._
 | 3: Security intelligence | done (MVP scope) | Provenance hyperedges, two epistemic views, interleaving, planner |
 | 4: Backend | partial | FastAPI with bearer auth, roles, per-cluster scoping. **Missing:** persistence, worker/jobs, SSE, cancellation, OIDC |
 | 5: Frontend | not started | |
-| 6: Demo laboratory | partial | Semantic spike executed once via `live-lab` (6/6 steps agree, receipt in `labs/receipts/`). The canary downstream service is not yet in the lab |
+| 6: Demo laboratory | partial | Semantic spike with canary relying service executed via `live-lab` (11/11 steps agree, receipts in `labs/receipts/`). **Missing:** network-isolation verification, reset, repeated-run reproducibility |
 | 7: Detection/evaluation | partial | 16 hand-authored cases. **Missing:** lab-derived labels, held-out templates |
 | 8: Advanced capabilities | not started | |
 | 9: Hardening | not started | No adversarial review yet |
@@ -23,10 +23,13 @@ _Last updated: 2026-09-26 (first live-lab receipt, version 0.1.0)._
 ## Known failures and open risks
 
 1. **Thin live validation.** One `live-lab` run (Kubernetes v1.31.4) agreed with the model on
-   6/6 spike steps, including S-TOK-4 (bound token rejected 0.01 s after Pod deletion). This is
-   one version, one run, one idle cluster; other rules and other versions remain model-level.
+   6/6 spike steps, including S-TOK-4 (bound token rejected 0.01 s after Pod deletion). A
+   second run added the canary relying service and agreed on 11/11 steps (S-SEC-1..4). This is
+   one version, one idle cluster; other rules and other versions remain model-level.
 2. The engine's propagation assumptions (RBAC and deletion effective before the next step)
-   are idealized. The lab records real delays, but the model does not consume them yet.
+   are idealized. The lab records real delays, but the model does not consume them yet. The
+   largest observed so far: canary rotation (S-SEC-4) took 54.7 s to take effect, during which
+   the copied credential was still accepted.
 3. Hand-authored expectations and the engine share authors. Only the differential,
    witness-replay, and mutation tests are independent of engine output.
 4. GitHub Actions are pinned by tag, and container images and the kind node image are not
@@ -37,6 +40,5 @@ _Last updated: 2026-09-26 (first live-lab receipt, version 0.1.0)._
 
 ## Next safe task
 
-In order: (a) add the canary downstream service to the lab (S-SEC-2..4);
-(b) PostgreSQL persistence and a leased worker (design prompt 08); (c) the investigation
+In order: (a) PostgreSQL persistence and a leased worker (design prompt 08); (b) the investigation
 frontend (prompt 12).
