@@ -1,0 +1,283 @@
+{
+  "lab": {
+    "server": "https://127.0.0.1:35597",
+    "ca_sha256": "c399c1da30c0641966861d738832e18456a10ac23fc0b5236ecdb8314395101c",
+    "kubernetes_version": "v1.31.4",
+    "lab_instance": "a9b29b251f5bc27d"
+  },
+  "runs": [
+    {
+      "run": "spike-20260926T132141Z-r1.json",
+      "validation": "lab_confirmed"
+    },
+    {
+      "run": "spike-20260926T132141Z-r2.json",
+      "validation": "lab_confirmed"
+    },
+    {
+      "run": "spike-20260926T132141Z-r3.json",
+      "validation": "lab_confirmed"
+    }
+  ],
+  "run_count": 3,
+  "all_runs_agree": true,
+  "missing_steps": {},
+  "steps": {
+    "ci-creates-release-reader-pod": {
+      "model_prediction": [
+        "may_create"
+      ],
+      "observed_http_status": [
+        201,
+        201,
+        201
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "attacker-reads-secret": {
+      "model_prediction": [
+        "violated"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "copied-credential-accepted-by-canary": {
+      "model_prediction": [
+        "violated"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "isolation-control-canary-answers-demo": {
+      "model_prediction": [
+        "reachable"
+      ],
+      "observed_http_status": [
+        401,
+        401,
+        401
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "isolation-outsider-cannot-reach-canary": {
+      "model_prediction": [
+        "unreachable"
+      ],
+      "observed_http_status": [
+        0,
+        0,
+        0
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "isolation-control-outsider-answers-demo": {
+      "model_prediction": [
+        "reachable"
+      ],
+      "observed_http_status": [
+        404,
+        404,
+        404
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "isolation-attacker-egress-to-outsider-denied": {
+      "model_prediction": [
+        "unreachable"
+      ],
+      "observed_http_status": [
+        0,
+        0,
+        0
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "ci-creation-blocked-after-binding-removal": {
+      "model_prediction": [
+        "blocked"
+      ],
+      "observed_http_status": [
+        403,
+        403,
+        403
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {
+        "elapsed_seconds": {
+          "n": 3,
+          "min": 0.0,
+          "median": 0.0,
+          "max": 0.0
+        }
+      }
+    },
+    "residual-token-still-reads-secret": {
+      "model_prediction": [
+        "violated"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "bound-token-rejected-after-pod-deletion": {
+      "model_prediction": [
+        "rejected"
+      ],
+      "observed_http_status": [
+        401,
+        401,
+        401
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {
+        "elapsed_seconds_after_deletion_complete": {
+          "n": 3,
+          "min": 0.01,
+          "median": 0.01,
+          "max": 0.01
+        }
+      }
+    },
+    "copied-credential-survives-kubernetes-containment": {
+      "model_prediction": [
+        "violated"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "rotation-acknowledged-by-canary": {
+      "model_prediction": [
+        "acknowledged"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {
+        "elapsed_seconds": {
+          "n": 3,
+          "min": 2.56,
+          "median": 13.73,
+          "max": 15.96
+        }
+      }
+    },
+    "copied-credential-rejected-after-rotation": {
+      "model_prediction": [
+        "satisfied_within_scope"
+      ],
+      "observed_http_status": [
+        401,
+        401,
+        401
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "s-sec-5-old-credential-accepted-right-after-rotation": {
+      "model_prediction": [
+        "violated"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {
+        "elapsed_seconds_since_rotation": {
+          "n": 3,
+          "min": 0.11,
+          "median": 0.12,
+          "max": 0.12
+        }
+      }
+    },
+    "s-sec-5-old-credential-rejected-after-propagation-wait": {
+      "model_prediction": [
+        "satisfied_within_scope"
+      ],
+      "observed_http_status": [
+        401,
+        401,
+        401
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {
+        "elapsed_seconds_since_rotation": {
+          "n": 3,
+          "min": 5.13,
+          "median": 16.12,
+          "max": 18.14
+        }
+      }
+    },
+    "legitimate-workload-uses-rotated-credential": {
+      "model_prediction": [
+        "preserved"
+      ],
+      "observed_http_status": [
+        200,
+        200,
+        200
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    },
+    "negative-control-admission-denies": {
+      "model_prediction": [
+        "satisfied_within_scope"
+      ],
+      "observed_http_status": [
+        422,
+        422,
+        422
+      ],
+      "all_agree": true,
+      "observations_identical": true,
+      "timing": {}
+    }
+  }
+}
