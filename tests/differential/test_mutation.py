@@ -21,16 +21,16 @@ from afterlock.results import analyze
 from conftest import EXPECTED, raw_case
 
 
-def _ignore_bound_pod(env: Any, cred: Any, profile: Any) -> semantics.Usability:
-    return semantics.credential_usable(env, replace(cred, bound_pod_uid=None), profile)
+def _ignore_bound_pod(env: Any, cred: Any, profile: Any, at: int | None = None) -> semantics.Usability:
+    return semantics.credential_usable(env, replace(cred, bound_pod_uid=None), profile, at=at)
 
 
-def _ignore_expiry(env: Any, cred: Any, profile: Any) -> semantics.Usability:
-    return semantics.credential_usable(env, replace(cred, expires_at=None), profile)
+def _ignore_expiry(env: Any, cred: Any, profile: Any, at: int | None = None) -> semantics.Usability:
+    return semantics.credential_usable(env, replace(cred, expires_at=None), profile, at=at)
 
 
-def _ignore_audience(env: Any, cred: Any, profile: Any) -> semantics.Usability:
-    return semantics.credential_usable(env, replace(cred, audience=profile.api_audiences[0]), profile)
+def _ignore_audience(env: Any, cred: Any, profile: Any, at: int | None = None) -> semantics.Usability:
+    return semantics.credential_usable(env, replace(cred, audience=profile.api_audiences[0]), profile, at=at)
 
 
 def _unsupported_admission_allows(env: Any, creator: str, ns: str, sa: str) -> semantics.AdmissionDecision:
