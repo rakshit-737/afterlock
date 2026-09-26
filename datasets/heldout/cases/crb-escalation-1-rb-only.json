@@ -1,0 +1,197 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "Only the namespaced binding is removed; the ClusterRoleBinding still grants pod creation in the target namespace."
+  ],
+  "bounds": {},
+  "case_id": "crb-escalation-1-rb-only",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-ingest-builder-0",
+      "id": "builder-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-ingest-builder",
+      "username": "system:serviceaccount:ingest:builder"
+    }
+  ],
+  "initial_facts": [
+    {
+      "args": [
+        "builder-token"
+      ],
+      "evidence": [],
+      "kind": "possesses_credential",
+      "status": "assumed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "builder-launch",
+        "namespace": null,
+        "role_kind": "ClusterRole",
+        "role_name": "pod-launcher",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "builder",
+            "namespace": "ingest"
+          }
+        ]
+      },
+      {
+        "name": "builder-local",
+        "namespace": "ingest",
+        "role_kind": "ClusterRole",
+        "role_name": "pod-launcher",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "builder",
+            "namespace": "ingest"
+          }
+        ]
+      },
+      {
+        "name": "vault-sync-db",
+        "namespace": "batch",
+        "role_kind": "Role",
+        "role_name": "db-reader",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "vault-sync",
+            "namespace": "batch"
+          }
+        ]
+      }
+    ],
+    "controllers": [],
+    "pods": [
+      {
+        "name": "builder-0",
+        "namespace": "ingest",
+        "service_account": "builder",
+        "uid": "pod-ingest-builder-0"
+      },
+      {
+        "name": "vault-sync-0",
+        "namespace": "batch",
+        "service_account": "vault-sync",
+        "uid": "pod-batch-vault-sync-0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "pod-launcher",
+        "namespace": null,
+        "rules": [
+          {
+            "resources": [
+              "pods"
+            ],
+            "verbs": [
+              "create"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "db-reader",
+        "namespace": "batch",
+        "rules": [
+          {
+            "resource_names": [
+              "db-creds"
+            ],
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "db-creds",
+        "namespace": "batch",
+        "uid": "sec-batch-db",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "builder",
+        "namespace": "ingest",
+        "uid": "sa-ingest-builder"
+      },
+      {
+        "name": "vault-sync",
+        "namespace": "batch",
+        "uid": "sa-batch-vault-sync"
+      },
+      {
+        "name": "worker0",
+        "namespace": "search",
+        "uid": "sa-search-worker0"
+      }
+    ],
+    "services": [
+      {
+        "accepted_version": 1,
+        "name": "ledger",
+        "source_namespace": "batch",
+        "source_secret": "db-creds"
+      }
+    ]
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-batch-db-creds",
+      "kind": "no_secret_read",
+      "namespace": "batch",
+      "secret": "db-creds"
+    },
+    {
+      "id": "protect-ledger",
+      "kind": "no_downstream_use",
+      "service": "ledger"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "kind": "remove_binding",
+      "name": "builder-local",
+      "namespace": "ingest"
+    },
+    {
+      "keep_uids": [
+        "pod-batch-vault-sync-0"
+      ],
+      "kind": "delete_pods_except",
+      "namespace": "batch",
+      "service_account": "vault-sync"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "ledger"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
