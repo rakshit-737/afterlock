@@ -84,6 +84,9 @@ func Open(opt Options) (*Spool, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	// A restart is detected from the spool file already existing, not from it holding
+	// records: a collector killed before writing anything must still leave a gap.
+	restarted := err == nil
 	truncated := false
 	if len(existing) > 0 {
 		n := parseExisting(existing, s)
@@ -104,7 +107,7 @@ func Open(opt Options) (*Spool, error) {
 	}
 	s.f = f
 	s.size = int64(len(existing))
-	if len(s.records) > 0 {
+	if restarted {
 		reason := "collector restarted with an existing spool; events emitted while it was not running may be missing"
 		if truncated {
 			reason += "; a partially written trailing record was discarded"
