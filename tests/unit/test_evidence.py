@@ -153,3 +153,15 @@ def test_wrong_cluster_events_rejected(tmp_path: Path) -> None:
     _rewrite(d, evs)
     raw, diag = project(ReplayBundle.load(d))
     assert any("cluster_id" in p for r in diag["rejected"] for p in r["problems"])
+
+
+def test_same_stolen_token_used_twice_projects(tmp_path: Path) -> None:
+    """Regression (live lab, 2026-09-26): a second use of the same token raised KeyError."""
+    d = _copy(tmp_path)
+    evs = _events(d)
+    again = dict(evs[1], event_id="evt-demo-0002b", source_sequence=3,
+                 observed_at="2026-01-01T12:00:05Z", ingested_at="2026-01-01T12:00:06Z")
+    _rewrite(d, evs[:2] + [again] + evs[2:])
+    raw, diag = project(ReplayBundle.load(d))
+    assert not diag["rejected"]
+    assert analyze(parse_analysis_input(raw))["conclusion"]["model"] == "residual_path"
