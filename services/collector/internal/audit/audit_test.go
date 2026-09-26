@@ -109,3 +109,34 @@ func TestWebhookRequiresTokenAndDeduplicates(t *testing.T) {
 		t.Fatal("short token accepted")
 	}
 }
+
+// An API server audit log spans the cluster's lifetime; events before the
+// evidence window (e.g. an earlier lab run's Pod create with the same
+// namespace/name) are excluded, counted, and surfaced as one explicit gap.
+func TestAuditSinceExcludesEarlierEventsWithOneGap(t *testing.T) {
+	in, path := newIngester(t)
+	in.Since = time.Date(2026, 9, 26, 10, 5, 0, 0, time.UTC)
+	line := func(id, ts string) string {
+		return `{"kind":"Event","apiVersion":"audit.k8s.io/v1","level":"Metadata","auditID":"` + id + `","stage":"ResponseComplete",` +
+			`"requestURI":"/api/v1/namespaces/demo/pods","verb":"create","user":{"username":"system:serviceaccount:demo:ci-runner","uid":"sa-1"},` +
+			`"objectRef":{"resource":"pods","namespace":"demo","name":"diagnostic-job","apiVersion":"v1"},"responseStatus":{"metadata":{},"code":201},` +
+			`"stageTimestamp":"` + ts + `"}` + "\n"
+	}
+	log := line("old-1", "2026-09-26T10:01:31.123456Z") + line("old-2", "2026-09-26T10:04:59.999999Z") + line("new-1", "2026-09-26T10:05:00.000001Z")
+	if err := in.IngestLog(strings.NewReader(log), "audit.log"); err != nil {
+		t.Fatal(err)
+	}
+	if err := in.RecordWindowGap(); err != nil {
+		t.Fatal(err)
+	}
+	if in.Counters.Accepted.Load() != 1 || in.Counters.BeforeWindow.Load() != 2 {
+		t.Fatalf("accepted=%d before=%d", in.Counters.Accepted.Load(), in.Counters.BeforeWindow.Load())
+	}
+	raw, _ := os.ReadFile(path)
+	if bytes.Contains(raw, []byte("audit:old-")) || !bytes.Contains(raw, []byte("audit:new-1")) {
+		t.Fatal("window not applied")
+	}
+	if bytes.Count(raw, []byte(`"gap_kind":"audit-before-window"`)) != 1 || !bytes.Contains(raw, []byte("2 audit events before")) {
+		t.Fatalf("missing window gap: %s", raw)
+	}
+}
