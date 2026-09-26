@@ -75,12 +75,32 @@ type eventList struct {
 // Counters are exported as metrics.
 type Counters struct {
 	Accepted, Duplicates, IgnoredStage, Malformed, BodiesDropped, Unmodeled, Dropped atomic.Int64
+	// BeforeWindow counts events whose stageTimestamp precedes Ingester.Since.
+	BeforeWindow atomic.Int64
 }
 
 // Ingester turns audit events into spooled envelopes.
 type Ingester struct {
 	Spool    *spool.Spool
 	Counters *Counters
+	// Since, when non-zero, is the start of the evidence window: events whose
+	// stageTimestamp is before it are outside the case and are not spooled.
+	// An API server audit log covers the cluster's whole lifetime, so without
+	// a window, activity from earlier, unrelated runs (e.g. a Pod of the same
+	// namespace/name created and deleted before collection started) enters
+	// the bundle. Excluded events are counted; RecordWindowGap turns the
+	// count into an explicit gap so the boundary is never silent.
+	Since time.Time
+}
+
+// RecordWindowGap records one gap if any event fell before Since.
+func (in *Ingester) RecordWindowGap() error {
+	n := in.Counters.BeforeWindow.Load()
+	if n == 0 {
+		return nil
+	}
+	return in.Spool.Gap("audit-before-window", fmt.Sprintf("%d audit events before the evidence window start %s were excluded; activity before that time is not analysed",
+		n, in.Since.UTC().Format(time.RFC3339)))
 }
 
 // NewIngester returns an ingester writing to sp.
@@ -116,6 +136,10 @@ func (in *Ingester) ingest(ev *event, where string) error {
 	if err != nil {
 		in.Counters.Malformed.Add(1)
 		return in.Spool.Gap("audit-malformed", where+": audit event has no valid stageTimestamp and was dropped")
+	}
+	if !in.Since.IsZero() && ts.Before(in.Since) {
+		in.Counters.BeforeWindow.Add(1)
+		return nil
 	}
 	auditID := redact.String(ev.AuditID)
 	if ev.ImpersonatedUser != nil {
