@@ -176,7 +176,8 @@ def create_app(token_spec: str | None = None) -> FastAPI:
             inp = parse_analysis_input(raw)
         except ModelError as exc:
             raise HTTPException(422, {"conclusion": "invalid_input", "error": str(exc)}) from exc
-        assert body.mode in MODES
+        if body.mode not in MODES:  # explicit check: asserts are stripped under python -O
+            raise HTTPException(422, "unsupported analysis mode")
         result = analyze(inp, body.mode)
         analysis_id = f"an-{next(store.seq):06d}"
         with store.lock:
