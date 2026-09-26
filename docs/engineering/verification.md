@@ -99,6 +99,16 @@ Pod-create not correlated to the live UID; conclusion `unknown` vs `residual_pat
 `list-failed` gaps. An earlier run found a real engine defect: `project()` raised `KeyError`
 when one stolen token appeared in several audit events (fixed, regression test added).
 
+### Collector lab-confirmed (run [36237039829](https://github.com/rakshit-737/afterlock/actions/runs/36237039829))
+
+`labs/receipts/collect-20260926T105833Z.json`: `lab_confirmed`, 6/6 checks. Bundle validates;
+attacker Pod create correlated to the live UID and service account; binding deletion present;
+collected conclusion `residual_path` equals the hand-authored residual-token case
+(`protect-secret` violated); 2 injected restarts recorded as `collector-restart` gaps; leak scan
+clean over every produced file. Same run: spike 3 x 15 steps all agree. Fixes that got here:
+namespace-scoped Secret listing (48 forbidden lists before), `--audit-since` window (stale Pod
+creates from earlier runs), restart detection from spool existence.
+
 ## Not executed (these are not passes)
 
 | Check | Why | How to run |
