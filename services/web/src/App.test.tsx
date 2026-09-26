@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { AfterlockClient } from "./api/client";
+import { PollingJobApi, pollingWatcher } from "./api/jobs";
 import planFixture from "./test/fixtures/residual-token.plan.json";
 import resultFixture from "./test/fixtures/residual-token.result.json";
 
@@ -61,6 +62,72 @@ describe("App investigation flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Forget token" }));
     await waitFor(() => expect(screen.queryByText("residual-token")).toBeNull());
+  });
+
+  it("runs an analysis as a background job, shows its state, and cancels it", { timeout: 30000 }, async () => {
+    let state = "running";
+    const calls: string[] = [];
+    const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
+      new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
+    const job = () => ({
+      job_id: "job-1", cluster_id: "lab-local", manifest_id: "m", kind: "analysis", state, attempts: 1, max_attempts: 3,
+      cancel_requested: false, last_error: null, result_id: null,
+    });
+    const f = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${path}`);
+      if (path === "/v1/health") return json(200, { status: "ok", version: "0.1.0", storage: "in-memory" });
+      if (path.startsWith("/v1/cases?")) return json(200, { items: ["residual-token"], total: 1 });
+      if (path === "/v1/cases/residual-token") return json(200, { case_id: "residual-token", cluster_id: "lab-local", input: {}, diagnostics: {} });
+      if (path === "/v1/cases/residual-token/analysis-jobs")
+        return json(202, { job_id: "job-1", state: "queued", manifest_id: "m" }, { location: "/v1/jobs/job-1" });
+      if (path === "/v1/jobs/job-1/cancel") {
+        state = "cancelled";
+        return json(202, job());
+      }
+      if (path === "/v1/jobs/job-1") return json(200, job());
+      return json(404, { detail: "not found" });
+    }) as unknown as typeof fetch;
+    let client: AfterlockClient | null = null;
+    const make = (g: () => string | null) => (client = new AfterlockClient({ getToken: g, fetchImpl: f }));
+    const jobs = new PollingJobApi(
+      { getJob: (id, s) => client!.getJob(id, s), cancelJob: (id) => client!.cancelJob(id) },
+      pollingWatcher({ initialMs: 5, factor: 1, maxMs: 5 }),
+    );
+    render(<App makeClient={make} jobs={jobs} />);
+    fireEvent.change(screen.getByLabelText("API bearer token"), { target: { value: TOKEN } });
+    fireEvent.click(screen.getByRole("button", { name: "Use token" }));
+    fireEvent.click(await screen.findByRole("button", { name: "residual-token" }));
+    await screen.findByRole("heading", { name: /Case residual-token/ });
+    fireEvent.click(screen.getByLabelText("Run as background jobs"));
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+    await waitFor(() => expect(screen.getByTestId("job-state").textContent).toBe("running"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel job" }));
+    await waitFor(() => expect(screen.getByTestId("job-state").textContent).toBe("cancelled"));
+    expect((await screen.findByRole("alert")).textContent).toContain("was cancelled");
+    expect(calls).toContain("POST /v1/jobs/job-1/cancel");
+    expect(screen.queryByRole("heading", { name: "Conclusion" })).toBeNull();
+  });
+
+  it("stops polling on unmount", { timeout: 30000 }, async () => {
+    let polls = 0;
+    const f = (async (url: RequestInfo | URL) => {
+      const path = String(url);
+      const json = (status: number, body: unknown) =>
+        new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+      if (path === "/v1/jobs/job-1") polls++;
+      return json(200, { job_id: "job-1", state: "running", kind: "plan", attempts: 1, max_attempts: 3 });
+    }) as unknown as typeof fetch;
+    const client = new AfterlockClient({ getToken: () => TOKEN, fetchImpl: f });
+    const ctl = new AbortController();
+    const p = new PollingJobApi(client, pollingWatcher({ initialMs: 5, factor: 1, maxMs: 5 })).wait({ id: "job-1" }, ctl.signal);
+    await waitFor(() => expect(polls).toBeGreaterThan(1));
+    ctl.abort();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+    const n = polls;
+    await new Promise((r) => setTimeout(r, 30));
+    expect(polls).toBe(n);
   });
 
   it("surfaces API errors as alerts", async () => {
