@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Export a stored case and its results with a checksum manifest.
+# Usage: scripts/export_replay <case-id> <out-dir>
+set -eu
+exec afterlock export --case "$1" --out "$2"
