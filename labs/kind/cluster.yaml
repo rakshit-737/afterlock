@@ -1,11 +1,29 @@
 # Disposable AFTERLOCK lab cluster. Created only by labs/supervisor/lab.py on a
 # disposable Docker-capable Linux host. Never point the supervisor at another cluster.
-# Pin the node image by digest before a recorded run (see docs/engineering/verification.md).
+#
+# Node image: pinned by digest, taken from the kind v0.26.0 release notes
+# (https://github.com/kubernetes-sigs/kind/releases/tag/v0.26.0).
+#
+# CNI: kindnet (kind's default) does not enforce NetworkPolicy, so it is
+# disabled and the supervisor installs Calico from a pinned, checksum-verified
+# manifest (see CALICO_* in labs/supervisor/lab.py). podSubnet matches Calico's
+# default IPv4 pool.
+#
+# Kubelet syncFrequency is lowered from the 1m default to 10s so mounted Secret
+# updates (the canary rotation step) propagate sooner. The spike still measures
+# and records the elapsed rotation time; this setting shortens it, it does not
+# hide it, and it is lab-specific (production kubelets usually keep 1m).
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: afterlock-lab
 nodes:
   - role: control-plane
     image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30
+    kubeadmConfigPatches:
+      - |
+        kind: KubeletConfiguration
+        syncFrequency: 10s
 networking:
   apiServerAddress: "127.0.0.1"
+  disableDefaultCNI: true
+  podSubnet: "192.168.0.0/16"
