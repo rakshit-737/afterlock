@@ -451,7 +451,8 @@ class LiveCollector:
             problems = {"rejected": len(diag["rejected"]), "conflicts": len(diag["conflicts"])}
             valid = not diag["rejected"] and not diag["conflicts"]
         except Exception as exc:  # noqa: BLE001 - recorded as a failed check, never swallowed silently
-            out.append(check_receipt("collected-bundle-validates", False, "valid", error=type(exc).__name__))
+            out.append(check_receipt("collected-bundle-validates", False, "valid", error=type(exc).__name__,
+                                     **safe_error_detail(exc)))
             return out
         out.append(check_receipt("collected-bundle-validates", valid, "valid", schema=bundle.manifest.get("schema"),
                                  accepted_events=diag["accepted"], **problems))
@@ -503,6 +504,22 @@ class LiveCollector:
 
 
 # ---------------------------------------------------------------- commands
+
+
+def safe_error_detail(exc: BaseException) -> dict[str, Any]:
+    """Where an exception came from, without its message (which may quote evidence values).
+
+    Records the innermost afterlock frames (file:line function) and, for a KeyError, the key
+    only when it looks like a schema field name.
+    """
+    import traceback
+
+    where = [f"{Path(f.filename).name}:{f.lineno} {f.name}" for f in traceback.extract_tb(exc.__traceback__)
+             if "afterlock" in f.filename.replace("\\", "/")]
+    detail: dict[str, Any] = {"where": where[-3:]}
+    if isinstance(exc, KeyError) and exc.args and isinstance(exc.args[0], str) and re.fullmatch(r"[a-z_]{1,40}", exc.args[0]):
+        detail["missing_key"] = exc.args[0]
+    return detail
 
 
 def cmd_create(_args: list[str]) -> None:
