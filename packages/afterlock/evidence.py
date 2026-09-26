@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
+import urllib.parse
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -53,11 +55,42 @@ FORBIDDEN_KEYS = frozenset(
         "credential_value",
     }
 )
+# Normalized (lowercase, alphanumerics only) key suffixes that name credential material,
+# e.g. accessToken, id_token, client-secret, apiKey, private_key.
+FORBIDDEN_KEY_SUFFIXES = ("token", "password", "secretvalue", "clientsecret", "secretkey", "apikey", "privatekey", "accesskey", "authorization")
 SENSITIVE_PATTERNS = (
     re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),  # JWT
+    re.compile(r"ZXlK[A-Za-z0-9+/_-]{16,}"),  # base64 of a JWT ("eyJ" encodes to "ZXlK")
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"LS0tLS1CRUdJTi"),  # base64 of "-----BEGIN"
     re.compile(r"AFTERLOCK-CANARY-[A-Za-z0-9]+"),  # seeded redaction canaries
 )
+
+
+def _forbidden_key(key: str) -> bool:
+    norm = re.sub(r"[^a-z0-9]", "", key.lower())
+    return key.lower() in FORBIDDEN_KEYS or norm in FORBIDDEN_KEYS or norm.endswith(FORBIDDEN_KEY_SUFFIXES)
+
+
+def _credential_like(value: str) -> bool:
+    candidates = {value}
+    if "%" in value:
+        candidates.add(urllib.parse.unquote(value))
+    return any(pat.search(c) for c in candidates for pat in SENSITIVE_PATTERNS)
+
+
+def _no_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k, v in pairs:
+        if k in out:
+            raise ValueError(f"duplicate key {k!r}")
+        out[k] = v
+    return out
+
+
+def _loads(text: str) -> Any:
+    """json.loads that refuses duplicate object keys (parsers disagree on which wins)."""
+    return json.loads(text, object_pairs_hook=_no_duplicate_keys)
 
 SUPPORTED_EVENT_TYPES = frozenset({"k8s.api.response", "collector.gap", "collector.heartbeat", "lab.receipt"})
 
@@ -66,16 +99,19 @@ class BundleError(ValueError):
     """The bundle cannot be used as analysis input (invalid_input)."""
 
 
-def parse_time(value: Any, where: str) -> int:
+def parse_time(value: Any, where: str, *, round_up: bool = False) -> int:
+    """Epoch seconds. Sub-second parts truncate, or round up with ``round_up`` (used for
+    expiry, so a token is never treated as expired before it actually expires)."""
     if not isinstance(value, str) or len(value) > 40:
         raise BundleError(f"{where}: expected RFC 3339 timestamp")
     try:
         dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as exc:
+        if dt.tzinfo is None:
+            raise BundleError(f"{where}: timestamp must include a timezone")
+        ts = dt.astimezone(UTC).timestamp()
+    except (ValueError, OverflowError) as exc:
         raise BundleError(f"{where}: invalid timestamp {value!r}") from exc
-    if dt.tzinfo is None:
-        raise BundleError(f"{where}: timestamp must include a timezone")
-    return int(dt.astimezone(UTC).timestamp())
+    return math.ceil(ts) if round_up else math.floor(ts)
 
 
 def load_profile(profile_id: str) -> dict[str, Any]:
@@ -101,7 +137,7 @@ def _scan(value: Any, path: str, depth: int, problems: list[str]) -> None:
             if not isinstance(k, str) or len(k) > 64:
                 problems.append(f"{path}: invalid key")
                 continue
-            if k.lower() in FORBIDDEN_KEYS:
+            if _forbidden_key(k):
                 problems.append(f"{path}.{k}: forbidden field (credential or payload material)")
                 continue
             _scan(v, f"{path}.{k}", depth + 1, problems)
@@ -113,14 +149,33 @@ def _scan(value: Any, path: str, depth: int, problems: list[str]) -> None:
     elif isinstance(value, str):
         if len(value) > MAX_STRING:
             problems.append(f"{path}: string longer than {MAX_STRING}")
-        for pat in SENSITIVE_PATTERNS:
-            if pat.search(value):
-                problems.append(f"{path}: value resembles credential material")
-                break
+        if _credential_like(value):
+            problems.append(f"{path}: value resembles credential material")
     elif value is None or isinstance(value, (bool, int, float)):
         return
     else:  # pragma: no cover - json cannot produce other types
         problems.append(f"{path}: unsupported type")
+
+
+MAX_DOCUMENT_DEPTH = 32
+
+
+def _scan_document(value: Any, name: str, path: str = "$", depth: int = 0) -> None:
+    """Inventory and case files are copied into the stored analysis input, so they get
+    the same forbidden-key and credential-value checks as events (without the per-event
+    size limits). Any hit makes the whole bundle invalid."""
+    if depth > MAX_DOCUMENT_DEPTH:
+        raise BundleError(f"{name}: {path}: nesting deeper than {MAX_DOCUMENT_DEPTH}")
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if _forbidden_key(k):
+                raise BundleError(f"{name}: {path}.{k}: forbidden field (credential or payload material)")
+            _scan_document(v, name, f"{path}.{k}", depth + 1)
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            _scan_document(v, name, f"{path}[{i}]", depth + 1)
+    elif isinstance(value, str) and _credential_like(value):
+        raise BundleError(f"{name}: {path}: value resembles credential material")
 
 
 @dataclass(frozen=True)
@@ -186,8 +241,8 @@ def _read_file(root: Path, name: str) -> bytes:
 
 def _json(data: bytes, name: str) -> Any:
     try:
-        return json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return _loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
         raise BundleError(f"{name}: invalid JSON") from exc
 
 
@@ -220,6 +275,8 @@ class ReplayBundle:
         case = _json(contents["case.json"], "case.json")
         if not isinstance(inventory, dict) or not isinstance(case, dict):
             raise BundleError("inventory.json and case.json must be objects")
+        _scan_document(inventory, "inventory.json")
+        _scan_document(case, "case.json")
         lines = contents["events.jsonl"].decode("utf-8", errors="strict").splitlines()
         if len(lines) > MAX_EVENTS:
             raise BundleError("events.jsonl: too many events")
@@ -276,9 +333,9 @@ def _events(bundle: ReplayBundle, cluster_id: str, diag: Diagnostics) -> list[En
             diag.rejected.append({"line": lineno, "problems": ["line too long"]})
             continue
         try:
-            raw = json.loads(line)
-        except json.JSONDecodeError:
-            diag.rejected.append({"line": lineno, "problems": ["invalid JSON"]})
+            raw = _loads(line)
+        except (ValueError, RecursionError):
+            diag.rejected.append({"line": lineno, "problems": ["invalid JSON or duplicate key"]})
             continue
         env, problems = validate_envelope(raw, cluster_id)
         if env is None:
@@ -373,6 +430,13 @@ def project(bundle: ReplayBundle) -> tuple[dict[str, Any], dict[str, Any]]:
                 if target["uid"] not in attacker_pods:
                     attacker_pods.add(target["uid"])
                     changed = True
+            elif resource == "deployments" and verb == "create" and isinstance(target.get("uid"), str):
+                # Pods of an attacker-created controller act for the attacker too (S-WL-2).
+                # Only Pods still in the inventory can be linked to their controller.
+                for puid, p in pods_by_uid.items():
+                    if p.get("controller_uid") == target["uid"] and puid not in attacker_pods:
+                        attacker_pods.add(puid)
+                        changed = True
     for ev in events:
         b = ev.body
         ref = f"{ev.source_id}#{ev.source_sequence}"
@@ -419,7 +483,7 @@ def project(bundle: ReplayBundle) -> tuple[dict[str, Any], dict[str, Any]]:
                         "audience": aud,
                         # Expiry is not visible in audit metadata; without an explicit
                         # observation we do not assume expiry (conservative).
-                        "expires_at": parse_time(actor["credential_expires_at"], "credential_expires_at") if "credential_expires_at" in actor else None,
+                        "expires_at": parse_time(actor["credential_expires_at"], "credential_expires_at", round_up=True) if "credential_expires_at" in actor else None,
                     },
                 )
                 if credentials[cid].get("sa_uid", "") is None:
