@@ -137,8 +137,12 @@ class Usability:
     reasons: tuple[str, ...]
 
 
-def credential_usable(env: Env, cred: CredentialSpec, profile: Profile) -> Usability:
-    """Whether the Kubernetes API would accept ``cred`` at ``env.time``.
+def credential_usable(env: Env, cred: CredentialSpec, profile: Profile, at: int | None = None) -> Usability:
+    """Whether the Kubernetes API would accept ``cred`` at ``at`` (default ``env.time``).
+
+    ``at`` lets the possible-history phase evaluate expiry at the time a
+    hypothetical earlier use would occur (S-TOK-1); every other check is made
+    against ``env``, the assumed-unchanged environment.
 
     Projected service-account tokens are rejected when expired, when their
     audience is not an API-server audience, when the service account no
@@ -149,9 +153,10 @@ def credential_usable(env: Env, cred: CredentialSpec, profile: Profile) -> Usabi
         return Usability(False, False, (f"credential kind {cred.kind!r} is not supported by profile {profile.id}",))
     reasons = []
     ok = True
-    if cred.expires_at is not None and env.time >= cred.expires_at:
+    when = env.time if at is None else at
+    if cred.expires_at is not None and when >= cred.expires_at:
         ok = False
-        reasons.append(f"expired at {cred.expires_at} (analysis time {env.time})")
+        reasons.append(f"expired at {cred.expires_at} ({'analysis time' if at is None else 'hypothetical use at'} {when})")
     if cred.audience not in profile.api_audiences:
         ok = False
         reasons.append(f"audience {cred.audience!r} is not accepted by the API server")
