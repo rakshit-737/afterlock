@@ -26,7 +26,7 @@ var sensitive = []*regexp.Regexp{
 	regexp.MustCompile(`eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`), // JWT
 	regexp.MustCompile(`ZXlK[A-Za-z0-9+/_-]{16,}`),                // base64 of a JWT ("eyJ" -> "ZXlK")
 	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`),
-	regexp.MustCompile(`LS0tLS1CRUdJTi`), // base64 of "-----BEGIN"
+	regexp.MustCompile(`LS0tLS1CRUdJTi`),                // base64 of "-----BEGIN"
 	regexp.MustCompile(`AFTERLOCK-CANARY-[A-Za-z0-9]+`), // seeded redaction canaries
 	regexp.MustCompile(`(?i)bearer\s+[A-Za-z0-9._~+/=-]{8,}`),
 }
