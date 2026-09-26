@@ -1,0 +1,10 @@
+{
+  "case_id": "incomplete-telemetry",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:f9185a896c3cdf6fbee2451a4fea93208c2fa5eba3b07a96264691f81dbf445f",
+    "events.jsonl": "sha256:8bd1f634f58b918363069032790b9098071cd089559e81e911561d978e9f7c5d",
+    "inventory.json": "sha256:6529082eb9fbcc9592bf8a4aef2dd097a09eb2d22b2f7e43091b2fafb518d063"
+  },
+  "schema": "afterlock.replay/1"
+}
