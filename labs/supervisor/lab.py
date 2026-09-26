@@ -22,6 +22,15 @@ each after a control showing the destination answers an allowed client.
 `reset` restores the post-create state without recreating the cluster, and
 `spike --repeat N` runs reset+spike N times, one receipt per run plus a summary.
 
+`collect` runs reset+spike with the Go collector (services/collector) running on the
+host under a read-only ServiceAccount token, kills and restarts it mid-spike (fault
+injection), and at the residual-token checkpoint (binding removed, attacker Pod alive)
+has it ingest the API server audit log and write an afterlock.replay/1 bundle. The
+supervisor validates, projects and analyses that bundle, compares the conclusion with
+the hand-authored residual-token case, and scans every produced file for the
+credential values it holds in memory; the bundle is kept (labs/collected/) only if
+that scan is clean.
+
 Every observation is compared with the engine's prediction for the matching
 replay case and written to labs/receipts/. Tokens and credential values stay in
 memory and never appear in receipts or host command lines.
@@ -34,11 +43,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import re
 import secrets
+import shutil
 import ssl
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -63,16 +75,27 @@ CALICO_SHA256 = "ef325a26cb4e0a2d386d0e512c0cf4fd0fa935ac25777b41b0d3737153025a1
 sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from receipts import agrees, network_policies, summarise, validation  # noqa: E402
+import collected  # noqa: E402
+from receipts import agrees, check_receipt, network_policies, summarise, validation  # noqa: E402
+
+# Audit logging (labs/kind/cluster.yaml). The policy is staged here before the
+# cluster is created; the API server writes its log into AUDIT_HOST_DIR through
+# an extraMount, and the collector reads it from the host.
+LAB_HOST_DIR = Path("/tmp/afterlock-lab")
+AUDIT_POLICY_SRC = ROOT / "services" / "collector" / "deploy" / "audit-policy.yaml"
+AUDIT_LOG_NODE_PATH = "/var/log/kubernetes/audit/audit.log"
+NODE_CONTAINER = f"{CLUSTER}-control-plane"
+COLLECTED = ROOT / "labs" / "collected"
+COLLECTOR_SOURCE_ID = "lab-collector"
 
 
 class LabError(RuntimeError):
     pass
 
 
-def run(args: list[str], *, stdin: bytes | None = None, check: bool = True) -> str:
+def run(args: list[str], *, stdin: bytes | None = None, check: bool = True, cwd: Path | None = None) -> str:
     """Run a fixed argument vector (never a shell string)."""
-    proc = subprocess.run(args, input=stdin, capture_output=True, timeout=600)
+    proc = subprocess.run(args, input=stdin, capture_output=True, timeout=600, cwd=cwd)
     if check and proc.returncode != 0:
         raise LabError(f"{args[0]} {args[1] if len(args) > 1 else ''} failed: {proc.stderr.decode()[:400]}")
     return proc.stdout.decode()
@@ -275,12 +298,217 @@ def seed_credential() -> float:
     raise LabError("canary did not accept the seeded credential in time")
 
 
+def stage_audit_policy() -> None:
+    """Copy the collector's audit policy to the fixed host path cluster.yaml mounts."""
+    (LAB_HOST_DIR / "policy").mkdir(parents=True, exist_ok=True)
+    (LAB_HOST_DIR / "audit").mkdir(parents=True, exist_ok=True)
+    (LAB_HOST_DIR / "policy" / "audit-policy.yaml").write_bytes(AUDIT_POLICY_SRC.read_bytes())
+
+
+def read_audit_log() -> bytes:
+    """The API server's audit log (Metadata level: no bodies). Host mount first, node fallback.
+
+    The file is created by the API server as root with mode 0600, so on hosts where the
+    supervisor is unprivileged it is read through the node container instead.
+    """
+    try:
+        return (LAB_HOST_DIR / "audit" / "audit.log").read_bytes()
+    except PermissionError:
+        proc = subprocess.run(["docker", "exec", NODE_CONTAINER, "cat", AUDIT_LOG_NODE_PATH],
+                              capture_output=True, timeout=120)
+        if proc.returncode != 0:
+            raise LabError("could not read the API server audit log") from None
+        return proc.stdout
+
+
+# ---------------------------------------------------------------- collector (read-only, metadata only)
+
+
+class LiveCollector:
+    """Runs the Go collector on the host against the lab with a read-only ServiceAccount token.
+
+    Phases during a spike:
+      start()      process A: list/watch inventory into a fresh spool
+      restart()    fault injection: SIGKILL A mid-spike, start B on the same spool
+                   (the collector must record a collector-restart gap)
+      finish(...)  SIGTERM B, then process C ingests the API server audit log with the
+                   same spool, relists inventory, and writes the replay bundle. The
+                   supervisor then validates, analyses and leak-scans it.
+
+    The collector token lives in process memory and, for the collector's lifetime,
+    in a 0600 kubeconfig inside a private temporary directory that is removed on
+    close(). It is never written into labs/.
+    """
+
+    def __init__(self, ident: dict[str, Any]) -> None:
+        self.ident = ident
+        self.bin = self._binary()
+        self.work = Path(tempfile.mkdtemp(prefix="afterlock-collect-"))
+        self.secret_dir = Path(tempfile.mkdtemp(prefix="afterlock-collector-kube-"))
+        self.spool = self.work / "spool.jsonl"
+        self.proc: subprocess.Popen[bytes] | None = None
+        self.phase = 0
+        self.token = ""
+        self.receipts: list[dict[str, Any]] = []
+
+    @staticmethod
+    def _binary() -> Path:
+        override = os.environ.get("AFTERLOCK_COLLECTOR_BIN")
+        if override:
+            path = Path(override)
+        else:
+            path = ROOT / "labs" / ".state" / "afterlock-collector"
+            run(["go", "build", "-trimpath", "-o", str(path), "./cmd/afterlock-collector"], cwd=ROOT / "services" / "collector")
+        if not path.is_file():
+            raise LabError(f"collector binary not found at {path}")
+        return path
+
+    def _grant(self) -> None:
+        kubectl("apply", "-f", "-", stdin=kubectl("create", "namespace", "afterlock", "--dry-run=client", "-o", "json").encode())
+        kubectl("apply", "-f", str(ROOT / "services" / "collector" / "deploy" / "rbac.yaml"))
+        # Secret metadata: the ClusterRole from secret-metadata-rbac.yaml, bound only in
+        # the lab namespace (RoleBinding), as that file recommends.
+        role = {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole",
+                "metadata": {"name": "afterlock-collector-secret-metadata"},
+                "rules": [{"apiGroups": [""], "resources": ["secrets"], "verbs": ["list", "watch"]}]}
+        binding = {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "RoleBinding",
+                   "metadata": {"name": "afterlock-collector-secret-metadata", "namespace": NS},
+                   "roleRef": {"apiGroup": "rbac.authorization.k8s.io", "kind": "ClusterRole", "name": "afterlock-collector-secret-metadata"},
+                   "subjects": [{"kind": "ServiceAccount", "name": "afterlock-collector", "namespace": "afterlock"}]}
+        for doc in (role, binding):
+            kubectl("apply", "-f", "-", stdin=json.dumps(doc).encode())
+        self.token = kubectl("create", "token", "afterlock-collector", "-n", "afterlock", "--duration=30m").strip()
+        cfg = json.loads(kubectl("config", "view", "--raw", "--minify", "-o", "json"))
+        kubeconfig = {
+            "apiVersion": "v1", "kind": "Config", "current-context": "collector",
+            "clusters": [{"name": "lab", "cluster": {"server": self.ident["server"],
+                          "certificate-authority-data": cfg["clusters"][0]["cluster"]["certificate-authority-data"]}}],
+            "users": [{"name": "afterlock-collector", "user": {"token": self.token}}],
+            "contexts": [{"name": "collector", "context": {"cluster": "lab", "user": "afterlock-collector"}}],
+        }
+        fd = os.open(self.secret_dir / "kubeconfig", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as fh:
+            json.dump(kubeconfig, fh)
+
+    def _args(self, out: Path, *extra: str) -> list[str]:
+        return [str(self.bin), "--kubeconfig", str(self.secret_dir / "kubeconfig"), "--cluster-id", CLUSTER,
+                "--source-id", COLLECTOR_SOURCE_ID, "--case-id", "residual-token-live", "--spool", str(self.spool),
+                "--secret-metadata", "--out", str(out), *extra]
+
+    def _spawn(self) -> None:
+        self.phase += 1
+        log = open(self.work / f"collector-{self.phase}.log", "wb")  # noqa: SIM115 - owned by the process
+        self.proc = subprocess.Popen(self._args(self.work / f"partial-{self.phase}"), stdout=log, stderr=log)
+        time.sleep(5)  # initial list; the process must still be running afterwards
+        if self.proc.poll() is not None:
+            raise LabError(f"collector exited early (phase {self.phase}); see its log in {self.work}")
+
+    def start(self) -> None:
+        self._grant()
+        self._spawn()
+
+    def restart(self) -> None:
+        """Fault injection: kill without a chance to flush, then restart on the same spool."""
+        assert self.proc is not None
+        self.proc.kill()
+        self.proc.wait(timeout=30)
+        self._spawn()
+
+    def finish(self, template: dict[str, Any], held: dict[str, str]) -> list[dict[str, Any]]:
+        """Stop collection, write the bundle, and check it. Returns receipt entries."""
+        from afterlock.evidence import ReplayBundle, project
+        from afterlock.model import parse_analysis_input
+        from afterlock.results import analyze
+
+        assert self.proc is not None
+        self.proc.terminate()
+        stopped = self.proc.wait(timeout=60)
+        time.sleep(2)  # let the API server flush the audit log
+        audit = self.work / "audit.log"
+        audit.write_bytes(read_audit_log())
+        ci_sa = json.loads(kubectl("get", "serviceaccount", "ci-runner", "-n", NS, "-o", "json"))["metadata"]["uid"]
+        release_uid = json.loads(kubectl("get", "pod", "release-app", "-n", NS, "-o", "json"))["metadata"]["uid"]
+        attacker_uid = json.loads(kubectl("get", "pod", "diagnostic-job", "-n", NS, "-o", "json"))["metadata"]["uid"]
+        case = collected.lab_case(template, ci_username=f"system:serviceaccount:{NS}:ci-runner", ci_sa_uid=ci_sa,
+                                  release_pod_uid=release_uid, analysis_time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                                  source_id=COLLECTOR_SOURCE_ID)
+        (self.work / "case-template.json").write_text(json.dumps(case, indent=2) + "\n")
+        bundle_dir = self.work / "bundle"
+        self.phase += 1
+        proc = subprocess.run(self._args(bundle_dir, "--audit-log", str(audit), "--case", str(self.work / "case-template.json")),
+                              capture_output=True, timeout=300)
+        audit.unlink()  # raw audit log is not part of the bundle and is not kept
+        out: list[dict[str, Any]] = [check_receipt("collector-writes-bundle", proc.returncode == 0, "written",
+                                                   restarted_phase_exit_code=stopped, exit_code=proc.returncode)]
+        if proc.returncode != 0:
+            return out
+
+        # 1. The bundle is a valid afterlock.replay/1 bundle and projects cleanly.
+        try:
+            bundle = ReplayBundle.load(bundle_dir)
+            analysis_input, diag = project(bundle)
+            result = analyze(parse_analysis_input(analysis_input))
+            problems = {"rejected": len(diag["rejected"]), "conflicts": len(diag["conflicts"])}
+            valid = not diag["rejected"] and not diag["conflicts"]
+        except Exception as exc:  # noqa: BLE001 - recorded as a failed check, never swallowed silently
+            out.append(check_receipt("collected-bundle-validates", False, "valid", error=type(exc).__name__))
+            return out
+        out.append(check_receipt("collected-bundle-validates", valid, "valid", schema=bundle.manifest.get("schema"),
+                                 accepted_events=diag["accepted"], **problems))
+
+        # 2. The attacker Pod creation and the binding deletion were collected.
+        events = collected.read_events(bundle.event_lines)
+        checks = collected.inventory_checks(bundle.inventory, events, namespace=NS, attacker_pod="diagnostic-job",
+                                            attacker_pod_uid=attacker_uid, attacker_sa="release-reader",
+                                            creator=f"system:serviceaccount:{NS}:ci-runner", binding="ci-pod-creator")
+        out.append(check_receipt("collected-inventory-shows-attack-and-containment", all(checks.values()), "present",
+                                 checks=checks))
+
+        # 3. Same conclusion as the hand-authored residual-token case.
+        reference = analyze(parse_analysis_input(project(ReplayBundle.load(ROOT / "datasets" / "replay" / "residual-token"))[0]))
+        cmp = collected.compare_conclusions(result, reference)
+        out.append(check_receipt("collected-conclusion-matches-residual-token", cmp["match"], reference["conclusion"]["model"],
+                                 replay_case="residual-token", comparison=cmp,
+                                 coverage_gaps=len(analysis_input["coverage_gaps"])))
+
+        # 4. Explicit gap for the injected restart.
+        kinds = collected.gap_kinds(events)
+        out.append(check_receipt("collector-restart-recorded-as-gap", kinds.get("collector-restart", 0) >= 2, "gap_recorded",
+                                 gap_kinds=kinds, collector_restarts_injected=2))
+
+        # 5. Leak scan over every file the collector produced (bundles, spool, logs, result).
+        (self.work / "analysis-result.json").write_text(json.dumps(result, indent=2) + "\n")
+        findings = collected.scan_for_leaks(self.work, {**held, "collector-token": self.token})
+        clean = not findings
+        out.append(check_receipt("collected-bundle-has-no-credential-material", clean, "no_leak",
+                                 findings=findings, scanned_files=sorted(p.relative_to(self.work).as_posix()
+                                                                         for p in self.work.rglob("*") if p.is_file())))
+        if clean:
+            stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+            dest = COLLECTED / f"residual-token-{stamp}"
+            dest.mkdir(parents=True)
+            for p in sorted(bundle_dir.iterdir()):
+                shutil.copyfile(p, dest / p.name)
+            shutil.copyfile(self.work / "analysis-result.json", dest / "analysis-result.json")
+            out[-1]["bundle"] = dest.relative_to(ROOT).as_posix()
+        return out
+
+    def close(self) -> None:
+        if self.proc is not None and self.proc.poll() is None:
+            self.proc.kill()
+            self.proc.wait(timeout=30)
+        self.token = ""
+        shutil.rmtree(self.secret_dir, ignore_errors=True)
+        shutil.rmtree(self.work, ignore_errors=True)
+
+
 # ---------------------------------------------------------------- commands
 
 
 def cmd_create(_args: list[str]) -> None:
     if CLUSTER in run(["kind", "get", "clusters"]).split():
         raise LabError(f"cluster {CLUSTER} already exists; destroy it first")
+    stage_audit_policy()
     run(["kind", "create", "cluster", "--config", str(ROOT / "labs" / "kind" / "cluster.yaml")])
     install_cni()
     kubectl("apply", "-f", str(ROOT / "labs" / "manifests" / "residual-token.yaml"))
@@ -328,7 +556,7 @@ def cmd_reset(_args: list[str]) -> None:
     print(f"lab reset in {info['elapsed_seconds']} s (credential accepted after {info['credential_seed_elapsed_seconds']} s)")
 
 
-def run_spike(ident: dict[str, Any]) -> list[dict[str, Any]]:
+def run_spike(ident: dict[str, Any], collector: LiveCollector | None = None) -> list[dict[str, Any]]:
     api = Api(ident)
     receipts: list[dict[str, Any]] = []
     secret_path = f"/api/v1/namespaces/{NS}/secrets/release-credential"
@@ -350,6 +578,8 @@ def run_spike(ident: dict[str, Any]) -> list[dict[str, Any]]:
     ci = kubectl("create", "token", "ci-runner", "-n", NS, "--duration=20m").strip()  # seeded compromise
     record("ci-creates-release-reader-pod", "may_create", api.request(ci, "POST", pods_path, attacker_pod("diagnostic-job", "release-reader")), "answer_ok")
     stolen = pod_token("diagnostic-job")
+    if collector is not None:
+        collector.restart()  # fault injection mid-spike: must surface as an explicit gap
     status, copied = api.read_secret_value(stolen, secret_path)
     record("attacker-reads-secret", "violated", status, "answer_ok")
     if copied is None:
@@ -379,6 +609,11 @@ def run_spike(ident: dict[str, Any]) -> list[dict[str, Any]]:
     record("ci-creation-blocked-after-binding-removal", "blocked", status, "answer_denied", elapsed_seconds=round(time.monotonic() - t0, 2))
     record("residual-token-still-reads-secret", observed=api.request(stolen, "GET", secret_path), expect="answer_ok",
            **predicted("residual-token", "protect-secret"))
+    if collector is not None:
+        # Checkpoint: the state now matches the residual-token case (binding removed,
+        # attacker Pod and its token alive). Collection ends here.
+        template = json.loads((ROOT / "datasets" / "replay" / "residual-token" / "case.json").read_text())
+        receipts.extend(collector.finish(template, {"ci-token": ci, "stolen-token": stolen, "copied-credential": copied}))
 
     uid = json.loads(kubectl("get", "pod", "diagnostic-job", "-n", NS, "-o", "json"))["metadata"]["uid"]
     kubectl("delete", "pod", "diagnostic-job", "-n", NS, "--wait=true")
@@ -463,6 +698,27 @@ def cmd_spike(args: list[str]) -> None:
         print(f"all runs agree: {summary['all_runs_agree']}; summary: {out.relative_to(ROOT).as_posix()}")
 
 
+def cmd_collect(_args: list[str]) -> None:
+    """reset + spike with the Go collector running; writes collect-<ts>.json and, only if
+    the leak scan passes, the collected bundle under labs/collected/."""
+    ident = require_recorded_lab()
+    lab = {k: ident[k] for k in ("server", "ca_sha256", "kubernetes_version", "lab_instance")}
+    doc: dict[str, Any] = {"lab": lab, "run": {"reset": reset(ident)}}
+    collector = LiveCollector(ident)
+    try:
+        collector.start()
+        receipts = run_spike(ident, collector)
+    finally:
+        collector.close()
+    doc.update(validation=validation(receipts), receipts=receipts)
+    RECEIPTS.mkdir(parents=True, exist_ok=True)
+    out = RECEIPTS / f"collect-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json"
+    out.write_text(json.dumps(doc, indent=2) + "\n")
+    print(f"validation: {doc['validation']}; receipt: {out.relative_to(ROOT).as_posix()}")
+    if doc["validation"] != "lab_confirmed":
+        raise LabError("collected evidence contradicts the model or failed a check; see the receipt")
+
+
 def cmd_destroy(_args: list[str]) -> None:
     require_recorded_lab()
     run(["kind", "delete", "cluster", "--name", CLUSTER])
@@ -475,7 +731,7 @@ def cmd_status(_args: list[str]) -> None:
 
 
 def main() -> int:
-    cmds = {"create": cmd_create, "spike": cmd_spike, "demo": cmd_spike, "reset": cmd_reset,
+    cmds = {"create": cmd_create, "spike": cmd_spike, "demo": cmd_spike, "reset": cmd_reset, "collect": cmd_collect,
             "verify": cmd_status, "status": cmd_status, "destroy": cmd_destroy}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
         print(f"usage: lab.py {{{','.join(cmds)}}} [--repeat N]", file=sys.stderr)
