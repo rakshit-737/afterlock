@@ -1,6 +1,8 @@
 import type { AnalysisResult, CoverageGap, Witness, WitnessStep } from "../api/types";
 import { actionText, conclusionLabel, factText, intervalText, isoTime, objectiveLabel, validationLabel } from "../format";
 import { Badge } from "./Badge";
+import { CredentialLifecycleView } from "./CredentialLifecycleView";
+import { ProvenanceView } from "./ProvenanceView";
 
 export function ResultView({ analysisId, result }: { analysisId: string; result: AnalysisResult }) {
   return (
@@ -8,6 +10,8 @@ export function ResultView({ analysisId, result }: { analysisId: string; result:
       <Conclusion analysisId={analysisId} result={result} />
       <Objectives result={result} />
       <LegitimateOperations result={result} />
+      <ProvenanceView result={result} />
+      <CredentialLifecycleView result={result} />
       <Witnesses witnesses={result.witnesses} />
       <Timeline result={result} />
       <Coverage gaps={result.missing_coverage} bounds={result.analysis_bounds} />
