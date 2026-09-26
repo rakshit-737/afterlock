@@ -1,0 +1,15 @@
+{
+  "id": "k8s-1.31-core-v1",
+  "kubernetes_version": "1.31",
+  "api_audiences": ["https://kubernetes.default.svc.cluster.local", "https://kubernetes.default.svc"],
+  "projected_token_ttl_seconds": 3600,
+  "conformance_status": "unverified: live kind conformance suite has not been executed for this profile",
+  "assumptions": [
+    "The API server validates bound service-account tokens against the current existence and UID of the service account and bound Pod.",
+    "Authorization changes (RBAC binding removal) are effective before the next defender step.",
+    "Pod deletion is complete (not merely pending) before the next defender step.",
+    "Controllers reconcile a replacement Pod before the next defender step; controller deletion cascades to owned Pods.",
+    "Only service-account-restriction admission policies are evaluated; any other admission policy makes affected creation feasibility unknown.",
+    "The attacker does not pause between defender steps."
+  ]
+}
