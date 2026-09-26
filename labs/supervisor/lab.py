@@ -61,6 +61,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -170,9 +171,23 @@ def require_recorded_lab() -> dict[str, Any]:
     for key in ("context", "server", "ca_sha256", "namespace_uid", "lab_instance"):
         if recorded.get(key) != live.get(key):
             raise LabError(f"lab identity mismatch on {key}: refusing to act")
-    if not live["server"].startswith("https://127.0.0.1:"):
+    if not is_local_endpoint(live["server"]):
         raise LabError("lab API endpoint is not local: refusing to act")
     return recorded
+
+
+def is_local_endpoint(server: Any) -> bool:
+    """https://127.0.0.1:<port> exactly. A prefix check accepted userinfo tricks such as
+    ``https://127.0.0.1:6443@remote.example`` (host remote.example) or ``127.0.0.1:6443.example.com``."""
+    if not isinstance(server, str):
+        return False
+    try:
+        u = urllib.parse.urlsplit(server)
+        port = u.port
+    except ValueError:
+        return False
+    return (u.scheme == "https" and u.hostname == "127.0.0.1" and port is not None and u.username is None
+            and u.password is None and u.netloc == f"127.0.0.1:{port}" and u.path in ("", "/") and not u.query and not u.fragment)
 
 
 # ---------------------------------------------------------------- API client (token in memory only)
@@ -757,6 +772,8 @@ def cmd_create(_args: list[str]) -> None:
     wait_fixture_pods()
     STATE.parent.mkdir(parents=True, exist_ok=True)
     ident = live_identity()
+    if not is_local_endpoint(ident["server"]):
+        raise LabError("new lab API endpoint is not local: refusing to record it")
     ident["kubernetes_version"] = json.loads(kubectl("version", "-o", "json"))["serverVersion"]["gitVersion"]
     STATE.write_text(json.dumps(ident, indent=2) + "\n")
     print(f"lab created: {ident['server']} instance {instance} ({ident['kubernetes_version']})")
