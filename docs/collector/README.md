@@ -26,7 +26,7 @@ Every run ends with a `collector.heartbeat` record, so `required_sources` /
 
 * **Read-only.** The only API verbs issued are `list` and `watch`
   (`TestGoldenBundle` asserts this against the fake clientset's recorded
-  actions). RBAC: [`services/collector/deploy/rbac.yaml`](../../services/collector/deploy/rbac.yaml).
+  actions). RBAC: [`services/collector/deploy/rbac.yaml`](https://github.com/rakshit-737/afterlock/blob/main/services/collector/deploy/rbac.yaml).
 * **No Secret data, no tokens.** Audit events are decoded into a struct that
   holds only allowlisted metadata (`auditID`, `stage`, `verb`, `user.username`,
   `user.uid`, the `authentication.kubernetes.io/pod-uid` extra, `objectRef`,
@@ -50,7 +50,7 @@ Every run ends with a `collector.heartbeat` record, so `required_sources` /
 * **Secret metadata is off by default.** RBAC cannot grant "metadata only":
   `list secrets` permits reading bodies with any client. The optional grant is
   in a separate manifest,
-  [`secret-metadata-rbac.yaml`](../../services/collector/deploy/secret-metadata-rbac.yaml),
+  [`secret-metadata-rbac.yaml`](https://github.com/rakshit-737/afterlock/blob/main/services/collector/deploy/secret-metadata-rbac.yaml),
   with that warning. When disabled, the bundle carries a
   `secret-metadata-disabled` gap, and Secret reads without a known version
   become missing-metadata coverage gaps in the analysis, never "no read".
@@ -64,11 +64,11 @@ Every run ends with a `collector.heartbeat` record, so `required_sources` /
   must send `Authorization: Bearer <token>` (≥16 characters, from
   `--webhook-token-file`, compared in constant time). Bodies are capped at
   8 MiB. A batch is acknowledged only after the spool is fsynced.
-* The container ([`Dockerfile`](../../services/collector/Dockerfile)) is a
+* The container ([`Dockerfile`](https://github.com/rakshit-737/afterlock/blob/main/services/collector/Dockerfile)) is a
   static binary on `distroless/static-debian12:nonroot`, both images pinned by
   digest.
 
-Recommended audit policy: [`deploy/audit-policy.yaml`](../../services/collector/deploy/audit-policy.yaml)
+Recommended audit policy: [`deploy/audit-policy.yaml`](https://github.com/rakshit-737/afterlock/blob/main/services/collector/deploy/audit-policy.yaml)
 (`Metadata` level; bodies are never logged).
 
 ## Evidence semantics
