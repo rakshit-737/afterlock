@@ -94,6 +94,9 @@ def candidate_actions(inp: AnalysisInput) -> list[DefenderAction]:
         raw.append({"kind": "delete_service_account", "namespace": ns, "name": sa})
     for s in inp.inventory.services:
         raw.append({"kind": "rotate_downstream_credential", "service": s.name})
+        if s.rotation_propagation_seconds > 0:
+            # S-SEC-5: a rotation only contains once it has propagated; offer the wait.
+            raw.append({"kind": "wait", "seconds": s.rotation_propagation_seconds})
     return sorted(set(parse_actions(raw, "candidates")), key=lambda a: a.label())
 
 
