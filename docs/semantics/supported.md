@@ -1,10 +1,12 @@
 # Supported semantics: profile `k8s-1.31-core-v1`
 
-**Conformance status: unverified.** Each rule below is implemented twice: in
+**Conformance status: partial.** Each rule below is implemented twice: in
 `packages/afterlock/semantics.py` + `engine.py`, and independently in
-`packages/afterlock_reference`. The "Lab step" column names the receipt in
-`labs/supervisor/lab.py spike` that will confirm or contradict the rule. No such receipt
-exists yet.
+`packages/afterlock_reference`. The "Lab step" column names the step in
+`labs/supervisor/lab.py spike` that confirms or contradicts the rule. Every named step agrees
+with the model in the committed receipts (latest: 3 runs x 17 steps,
+`labs/receipts/spike-summary-20260926T132141Z.json`), on Kubernetes v1.31.4 in one idle kind
+cluster only. Rules marked "planned" or "—" are model-level only.
 
 ## Identity and authentication
 
@@ -56,8 +58,8 @@ exists yet.
 | S-SEC-1 | An authorized `get`, `list` or `watch` on a Secret yields knowledge of its current version (list and watch responses carry Secret data). `resourceNames` are matched against the Secret's name for all three, because a list/watch can be narrowed with a `metadata.name` field selector. Knowledge is permanent. An observed successful list/watch by the attacker is projected as knowledge of every inventory Secret in its scope, at the inventory version. | `attacker-reads-secret` (get); list/watch planned |
 | S-SEC-2 | Knowing a Secret version that a downstream service sources yields that service's credential for that version. | `copied-credential-accepted-by-canary` |
 | S-SEC-3 | A downstream credential authenticates only if the service currently accepts that version. | `copied-credential-survives-kubernetes-containment`, `copied-credential-rejected-after-rotation` |
-| S-SEC-4 | `rotate_downstream_credential` increments the Secret version and makes the service accept only the new version, as one atomic, acknowledged defender step. | `rotation-acknowledged-by-canary` (outcome agrees; in the lab the change took 54.7 s to take effect, so the step is not atomic in time) |
-| S-SEC-5 | Optional per-service `rotation_propagation_seconds` (inventory `services[]`, integer >= 0, default 0). When it is `d > 0`, a rotation at time `t` still increments the Secret version and the accepted version immediately, but the service **also keeps accepting the previously accepted version while `time < t + d`**. Only a later `wait` advances time, so a plan must wait at least `d` after the rotation for the old copy to stop working. With `d = 0` or the field absent, behaviour is exactly S-SEC-4. Source the value from measurement (lab: 54.7 s default kubelet sync, 2.4-13.5 s with `syncFrequency: 10s`). Legitimate operations are evaluated against the new version only, so the model over-approximates the attacker, not legitimate availability, during the window. | lab steps written, not yet executed: `s-sec-5-old-credential-accepted-right-after-rotation` (model with measured `d = ceil(ack)`, no wait: violated) and `s-sec-5-old-credential-rejected-after-propagation-wait` (probe at >= `d` + 2 s; model after `wait d`: satisfied_within_scope). `d` is measured in the same run, so a pass shows consistency with the observed timing, not an independent prediction of `d` |
+| S-SEC-4 | `rotate_downstream_credential` increments the Secret version and makes the service accept only the new version, as one atomic, acknowledged defender step. | `rotation-acknowledged-by-canary` (outcome agrees; in the lab the change took 54.7 s with the default kubelet sync and 2.4-16 s with `syncFrequency: 10s`, so the step is not atomic in time; see S-SEC-5) |
+| S-SEC-5 | Optional per-service `rotation_propagation_seconds` (inventory `services[]`, integer >= 0, default 0). When it is `d > 0`, a rotation at time `t` still increments the Secret version and the accepted version immediately, but the service **also keeps accepting the previously accepted version while `time < t + d`**. Only a later `wait` advances time, so a plan must wait at least `d` after the rotation for the old copy to stop working. With `d = 0` or the field absent, behaviour is exactly S-SEC-4. Source the value from measurement (lab: 54.7 s default kubelet sync, 2.4-13.5 s with `syncFrequency: 10s`). Legitimate operations are evaluated against the new version only, so the model over-approximates the attacker, not legitimate availability, during the window. | lab-confirmed (3/3 runs, latest summary): `s-sec-5-old-credential-accepted-right-after-rotation` (model with measured `d = ceil(ack)`, no wait: violated) and `s-sec-5-old-credential-rejected-after-propagation-wait` (probe at >= `d` + 2 s; model after `wait d`: satisfied_within_scope). `d` is measured in the same run, so a pass shows consistency with the observed timing, not an independent prediction of `d` |
 
 ## Defender actions
 
