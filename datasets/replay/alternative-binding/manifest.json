@@ -1,0 +1,10 @@
+{
+  "case_id": "alternative-binding",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:f5ba404d56337fc866685693ed96a03b2367946310f24c0dcc34cfc8f0da65b0",
+    "events.jsonl": "sha256:32ba7fed675c63ac7b8437db2de1906ac880aab5a22017f678ea2c7a6a80babf",
+    "inventory.json": "sha256:3b2b74ddbd2ad8e88c73f180718f616a8ae1392493a052b83a80d04c7bfa4968"
+  },
+  "schema": "afterlock.replay/1"
+}
