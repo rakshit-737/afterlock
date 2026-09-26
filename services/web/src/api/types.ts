@@ -206,3 +206,29 @@ export interface PlanResult {
   naive_containment: PlanCandidate | null;
   [key: string]: unknown;
 }
+
+// ---- asynchronous jobs (docs/api/api.md, "Asynchronous jobs") ----------------
+
+export type JobState = "queued" | "leased" | "running" | "succeeded" | "failed" | "cancelled";
+export type JobKind = "analysis" | "plan" | "verification";
+export const TERMINAL_JOB_STATES: readonly string[] = ["succeeded", "failed", "cancelled"];
+
+/** `GET /v1/jobs/{id}` and `POST /v1/jobs/{id}/cancel`. */
+export interface JobRecord {
+  job_id: string;
+  cluster_id: string;
+  manifest_id: string;
+  kind: JobKind | string;
+  state: JobState | string;
+  attempts: number;
+  max_attempts: number;
+  cancel_requested: boolean;
+  last_error: string | null;
+  result_id: string | null;
+  result?: unknown;
+}
+
+export interface JobOptions {
+  /** 1–10; the API defaults to 3. */
+  max_attempts?: number;
+}
