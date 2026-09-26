@@ -12,3 +12,5 @@ labs/.state/
 *.egg-info/
 build/
 dist/
+
+.opencode/
