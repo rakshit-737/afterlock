@@ -371,6 +371,10 @@ class LiveCollector:
         self.phase = 0
         self.token = ""
         self.receipts: list[dict[str, Any]] = []
+        # Start of the evidence window (RFC3339, whole seconds, floored so it is inclusive).
+        # The API server audit log covers the cluster's lifetime, including earlier spike
+        # runs that created and deleted Pods with the same names; those are not this case.
+        self.since = ""
 
     @staticmethod
     def _binary() -> Path:
@@ -388,7 +392,9 @@ class LiveCollector:
         kubectl("apply", "-f", "-", stdin=kubectl("create", "namespace", "afterlock", "--dry-run=client", "-o", "json").encode())
         kubectl("apply", "-f", str(ROOT / "services" / "collector" / "deploy" / "rbac.yaml"))
         # Secret metadata: the ClusterRole from secret-metadata-rbac.yaml, bound only in
-        # the lab namespace (RoleBinding), as that file recommends.
+        # the lab namespace (RoleBinding), as that file recommends. A RoleBinding grants
+        # nothing cluster-wide, so the collector must list/watch Secrets in that namespace
+        # only (--secret-namespaces); a cluster-wide list is forbidden (403).
         role = {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole",
                 "metadata": {"name": "afterlock-collector-secret-metadata"},
                 "rules": [{"apiGroups": [""], "resources": ["secrets"], "verbs": ["list", "watch"]}]}
@@ -414,7 +420,8 @@ class LiveCollector:
     def _args(self, out: Path, *extra: str) -> list[str]:
         return [str(self.bin), "--kubeconfig", str(self.secret_dir / "kubeconfig"), "--cluster-id", CLUSTER,
                 "--source-id", COLLECTOR_SOURCE_ID, "--case-id", "residual-token-live", "--spool", str(self.spool),
-                "--secret-metadata", "--out", str(out), *extra]
+                "--secret-metadata", "--secret-namespaces", NS, "--audit-since", self.since,
+                "--out", str(out), *extra]
 
     def _spawn(self) -> None:
         self.phase += 1
@@ -425,6 +432,9 @@ class LiveCollector:
             raise LabError(f"collector exited early (phase {self.phase}); see its log in {self.work}")
 
     def start(self) -> None:
+        # The kind node shares the host kernel clock, so host UTC and the API server's
+        # stageTimestamp are comparable.
+        self.since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         self._grant()
         self._spawn()
 
