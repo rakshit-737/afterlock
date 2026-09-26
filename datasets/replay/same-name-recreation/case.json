@@ -1,0 +1,49 @@
+{
+  "analysis_time": "2026-01-01T12:30:00Z",
+  "assumptions": [
+    "Initial compromise of the CI service account is seeded, not exploited."
+  ],
+  "compromised_credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-ci-0001",
+      "id": "ci-runner-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-ci-runner-0001",
+      "username": "system:serviceaccount:demo:ci-runner"
+    }
+  ],
+  "description": "A legitimate pod reuses the attacker pod's name with a new UID; the attacker's bound token is not revived.",
+  "legitimate_operations": [
+    {
+      "description": "release-app reads the current release credential.",
+      "id": "release-read",
+      "kind": "read_secret",
+      "namespace": "demo",
+      "pod_uid": "pod-release-0001",
+      "secret": "release-credential"
+    },
+    {
+      "description": "release-app authenticates to canary-service with the current credential.",
+      "id": "release-canary",
+      "kind": "use_downstream",
+      "pod_uid": "pod-release-0001",
+      "service": "canary-service"
+    }
+  ],
+  "max_evidence_staleness_seconds": 300,
+  "objectives": [
+    {
+      "description": "Prevent further Kubernetes reads of demo/release-credential by modeled attacker credentials.",
+      "id": "protect-secret",
+      "kind": "no_secret_read",
+      "namespace": "demo",
+      "secret": "release-credential"
+    }
+  ],
+  "profile": "k8s-1.31-core-v1",
+  "remediation": [],
+  "required_sources": [
+    "lab-audit"
+  ]
+}
