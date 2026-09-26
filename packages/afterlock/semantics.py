@@ -220,7 +220,9 @@ def reconcile_controllers(env: Env) -> list[Pod]:
     """Controllers recreate a Pod whenever none of theirs exists.
 
     Assumption (documented): reconciliation completes before the next
-    defender step. Replacement Pods receive new UIDs ``<controller>-p<k>``.
+    defender step. Replacement Pods receive new UIDs ``<controller>-p<k>``, taking
+    the next ``k`` whose UID no existing Pod has: a replacement never overwrites
+    another Pod (which would silently drop that Pod and the control it confers).
     """
     created = []
     for cuid in sorted(env.controllers):
@@ -228,6 +230,8 @@ def reconcile_controllers(env: Env) -> list[Pod]:
         if any(p.controller_uid == cuid for p in env.pods.values()):
             continue
         k = env.controller_pod_counter.get(cuid, 0) + 1
+        while f"{cuid}-p{k}" in env.pods:
+            k += 1
         env.controller_pod_counter[cuid] = k
         pod = Pod(c.namespace, f"{c.name}-p{k}", f"{cuid}-p{k}", c.service_account, c.token_audiences, cuid)
         env.pods[pod.uid] = pod
