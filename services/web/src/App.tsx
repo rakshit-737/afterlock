@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AfterlockClient, ApiError, settle, type JobApi } from "./api/client";
+import { AfterlockClient, ApiError, settle, type JobApi, type Submission } from "./api/client";
+import { PollingJobApi } from "./api/jobs";
 import type {
   AnalysisCreated,
   AnalysisRequest,
@@ -7,11 +8,13 @@ import type {
   CoverageGap,
   Health,
   InlineBundle,
+  JobRecord,
   PlanResult,
   VerificationResult,
 } from "./api/types";
 import { AnalysisForm } from "./components/AnalysisForm";
 import { ErrorNote } from "./components/Badge";
+import { JobStatus } from "./components/JobStatus";
 import { CaseUpload } from "./components/CaseUpload";
 import { PlanView } from "./components/PlanView";
 import { Coverage, ResultView } from "./components/ResultView";
@@ -27,7 +30,7 @@ function message(e: unknown): string {
 export interface AppProps {
   /** Injected for tests; defaults to a same-origin client. */
   makeClient?: (getToken: () => string | null) => AfterlockClient;
-  /** Future async-job support plugs in here (see api/client.ts). */
+  /** Job waiter; defaults to polling `GET /v1/jobs/{id}` (see api/jobs.ts). */
   jobs?: JobApi;
 }
 
@@ -39,6 +42,19 @@ export function App({ makeClient, jobs }: AppProps) {
     () => (makeClient ?? ((g) => new AfterlockClient({ getToken: g })))(() => tokenRef.current),
     [makeClient],
   );
+
+  const jobApi = useMemo(() => jobs ?? new PollingJobApi(client), [jobs, client]);
+  const [useJobs, setUseJobs] = useState(false);
+  const [job, setJob] = useState<{ label: string; id: string; rec: JobRecord } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  // Aborts in-flight job polling on unmount, case change, or token removal.
+  const abort = useRef<AbortController | null>(null);
+  const freshSignal = () => {
+    abort.current?.abort();
+    abort.current = new AbortController();
+    return abort.current.signal;
+  };
+  useEffect(() => () => abort.current?.abort(), []);
 
   const [health, setHealth] = useState<Health | null>(null);
   const [cases, setCases] = useState<string[]>([]);
@@ -79,6 +95,40 @@ export function App({ makeClient, jobs }: AppProps) {
     }
   }, []);
 
+  /** Resolve a submission; for an accepted job, track and show its state until it is terminal. */
+  const resolve = useCallback(
+    async <T,>(label: string, sub: Submission<T>): Promise<T> => {
+      const gen = generation.current;
+      const signal = freshSignal();
+      if (sub.state === "accepted") {
+        const id = sub.job.id;
+        setCancelling(false);
+        setJob({
+          label,
+          id,
+          rec: { job_id: id, cluster_id: "", manifest_id: "", kind: "", state: "queued", attempts: 0, max_attempts: 0,
+            cancel_requested: false, last_error: null, result_id: null },
+        });
+        return settle(sub, jobApi, signal, (rec) => {
+          if (gen === generation.current) setJob({ label, id, rec });
+        });
+      }
+      return settle(sub, jobApi, signal);
+    },
+    [jobApi],
+  );
+
+  async function cancelJob() {
+    if (!job) return;
+    setCancelling(true);
+    try {
+      await jobApi.cancel({ id: job.id });
+    } catch (e) {
+      setError(`Cancel failed: ${message(e)}`);
+      setCancelling(false);
+    }
+  }
+
   const clearAnalysis = () => {
     setAnalysis(null);
     setExplanation(null);
@@ -94,6 +144,8 @@ export function App({ makeClient, jobs }: AppProps) {
     if (token) void refresh();
     else {
       generation.current++;
+      abort.current?.abort();
+      setJob(null);
       setCases([]);
       setSelected(null);
       setDetail(null);
@@ -104,6 +156,8 @@ export function App({ makeClient, jobs }: AppProps) {
 
   async function select(caseId: string) {
     generation.current++;
+    abort.current?.abort();
+    setJob(null);
     setSelected(caseId);
     setDetail(null);
     clearAnalysis();
@@ -124,7 +178,7 @@ export function App({ makeClient, jobs }: AppProps) {
     if (!selected) return;
     generation.current++;
     clearAnalysis();
-    const a = await run("Analysis", async () => settle(await client.runAnalysis(selected, req), jobs));
+    const a = await run("Analysis", async () => resolve("analysis", useJobs ? await client.submitAnalysisJob(selected, req) : await client.runAnalysis(selected, req)));
     if (!a) return;
     setAnalysis(a);
     const text = await run("Explanation", () => client.getExplanation(a.id));
@@ -133,13 +187,16 @@ export function App({ makeClient, jobs }: AppProps) {
 
   async function verify() {
     if (!analysis) return;
-    const v = await run("Verification", async () => settle(await client.verify(analysis.id), jobs));
+    const v = await run("Verification", async () => resolve("verification", useJobs ? await client.submitVerificationJob(analysis.id) : await client.verify(analysis.id)));
     if (v) setVerification(v);
   }
 
   async function makePlan(max_length: number, max_evaluations: number) {
     if (!selected) return;
-    const p = await run("Plan", async () => settle(await client.plan(selected, { max_length, max_evaluations }), jobs));
+    const p = await run("Plan", async () => {
+      const req = { max_length, max_evaluations };
+      return resolve("plan", useJobs ? await client.submitPlanJob(selected, req) : await client.plan(selected, req));
+    });
     if (p) setPlanResult(p);
   }
 
@@ -196,6 +253,17 @@ export function App({ makeClient, jobs }: AppProps) {
                     Case <code>{detail.case_id}</code> <span className="muted small">cluster {detail.cluster_id}</span>
                   </h2>
                   <Coverage gaps={caseGaps} />
+                  <div className="panel">
+                    <label className="check" htmlFor="use-jobs">
+                      <input id="use-jobs" type="checkbox" checked={useJobs} onChange={(e) => setUseJobs(e.target.checked)} />
+                      Run as background jobs
+                    </label>
+                    <p className="muted small">
+                      Uses the <code>*-jobs</code> endpoints: the API queues the work and this page polls the job until it
+                      finishes. Leaving the case or the page stops polling; it does not cancel the job.
+                    </p>
+                  </div>
+                  {job ? <JobStatus label={job.label} job={job.rec} onCancel={() => void cancelJob()} cancelling={cancelling} /> : null}
                   <AnalysisForm busy={!!busy} onRun={analyze} />
                   {analysis ? (
                     <>
