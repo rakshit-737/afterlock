@@ -81,7 +81,8 @@ def analysis_inputs(draw: Any, max_actions: int = 3) -> dict[str, Any]:
         if bound:
             c["bound_pod_uid"] = bound
         if draw(st.booleans()):
-            c["expires_at"] = T0 + draw(st.sampled_from([0, 300, 5000]))
+            # before, at and after the history-window edges (S-TOK-1 in possible history)
+            c["expires_at"] = T0 + draw(st.sampled_from([-500, -499, -1, 0, 1, 300, 5000]))
         creds.append(c)
         facts.append({"kind": "possesses_credential", "args": [c["id"]], "status": draw(st.sampled_from(["assumed", "observed", "inferred"])), "evidence": []})
     for p in pods:
@@ -104,7 +105,9 @@ def analysis_inputs(draw: Any, max_actions: int = 3) -> dict[str, Any]:
               {"kind": "wait", "seconds": 90}]
     remediation = draw(st.lists(st.sampled_from(vocab), max_size=max_actions))
 
-    return {
+    history_start = draw(st.sampled_from([None, None, T0 - 500, T0 - 1, T0]))
+
+    raw: dict[str, Any] = {
         "schema": "afterlock.analysis-input/1",
         "case_id": "generated",
         "cluster_id": "gen",
@@ -124,3 +127,6 @@ def analysis_inputs(draw: Any, max_actions: int = 3) -> dict[str, Any]:
         "assumptions": [],
         "bounds": {},
     }
+    if history_start is not None:
+        raw["history_start"] = history_start
+    return raw
