@@ -37,7 +37,7 @@
 | Expensive requests | Derivation cap, planner caps, body-size limit | partial (no per-user concurrency limits) |
 | Executor abuse | Lab identity pinned to endpoint, CA digest, namespace UID, and instance id; local endpoint only | written, **not executed** |
 | Stored XSS | No frontend yet. The API returns JSON and text/plain | n/a |
-| Dependency compromise | Zero runtime dependencies in core; pinned kind/kubectl checksums in the lab workflow | partial (no lockfile, SBOM, or SHA-pinned actions) |
+| Dependency compromise | Zero runtime dependencies in core; pinned kind/kubectl checksums; SHA-pinned actions; digest-pinned images; CI installs from `uv.lock`; CycloneDX SBOM in CI (docs/security/supply-chain.md) | partial (no provenance/signing; API image build not lockfile-based) |
 
 ## Out of scope for V1
 
