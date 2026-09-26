@@ -1,0 +1,1 @@
+--8<-- "benchmarks/reports/semantic-corpus.md"
