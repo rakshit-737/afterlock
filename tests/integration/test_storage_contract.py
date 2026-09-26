@@ -160,6 +160,24 @@ def test_worker_death_lease_expiry_rerun_and_duplicate_completion(backend: Backe
     assert final["state"] == "succeeded" and final["result"] == {"from": "alive"} and final["result_id"] == rid
 
 
+def test_stale_lease_with_same_owner_is_fenced_by_attempt(backend: Backend) -> None:
+    # Same owner name re-claims after expiry (e.g. the in-process "api-inprocess" drains).
+    s = backend.storage
+    job = job_for(s)
+    stale = s.claim("same-owner", LEASE)
+    assert stale is not None
+    backend.advance(LEASE + 0.5)
+    fresh = s.claim("same-owner", LEASE)
+    assert fresh is not None and fresh.attempt == stale.attempt + 1
+    assert s.heartbeat(stale, LEASE) == "lost"
+    assert s.fail(stale, "transient") is None
+    assert s.acknowledge_cancel(stale) is False
+    assert s.complete(stale, {"from": "stale"}) is None
+    assert s.mark_running(fresh, LEASE) == "ok"
+    rid = s.complete(fresh, {"from": "fresh"})
+    assert rid is not None and s.get_job(job["job_id"], None)["result"] == {"from": "fresh"}
+
+
 def test_bounded_retries(backend: Backend) -> None:
     s = backend.storage
     job = job_for(s, max_attempts=2)
