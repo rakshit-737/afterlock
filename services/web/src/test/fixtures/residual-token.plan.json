@@ -1,0 +1,224 @@
+{
+ "schema": "afterlock.plan/1",
+ "case_id": "residual-token",
+ "input_digest": "sha256:efa3085862b576c7822ae3149ecdd517638fc245dd2ab2b9d8ddf13d5984f99f",
+ "search": {
+  "status": "optimal_within_bounds",
+  "statement": "Minimum-cost valid sequence among all orderings of up to 4 distinct candidate actions (10 candidates, 832 sequences evaluated).",
+  "algorithm": "uniform-cost search over distinct-action sequences; each sequence fully re-analyzed",
+  "max_length": 4,
+  "max_evaluations": 2000,
+  "evaluations": 832,
+  "candidates": [
+   {
+    "kind": "delete_controllers_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "ci-runner"
+   },
+   {
+    "kind": "delete_controllers_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "release-reader"
+   },
+   {
+    "kind": "delete_pod",
+    "uid": "pod-attacker-0001"
+   },
+   {
+    "kind": "delete_pods_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "ci-runner"
+   },
+   {
+    "kind": "delete_pods_except",
+    "keep_uids": [
+     "pod-release-0001"
+    ],
+    "namespace": "demo",
+    "service_account": "release-reader"
+   },
+   {
+    "kind": "delete_service_account",
+    "name": "ci-runner",
+    "namespace": "demo"
+   },
+   {
+    "kind": "delete_service_account",
+    "name": "release-reader",
+    "namespace": "demo"
+   },
+   {
+    "kind": "remove_binding",
+    "name": "ci-pod-creator",
+    "namespace": "demo"
+   },
+   {
+    "kind": "remove_binding",
+    "name": "release-reader-secret",
+    "namespace": "demo"
+   },
+   {
+    "kind": "rotate_downstream_credential",
+    "service": "canary-service"
+   }
+  ],
+  "costs": {
+   "remove_binding": 1.0,
+   "delete_pod": 1.0,
+   "delete_controller": 1.0,
+   "delete_pods_except": 2.0,
+   "delete_controllers_except": 2.0,
+   "rotate_downstream_credential": 3.0,
+   "delete_service_account": 4.0,
+   "wait": 0.0
+  }
+ },
+ "best_plan": {
+  "actions": [
+   {
+    "kind": "remove_binding",
+    "name": "ci-pod-creator",
+    "namespace": "demo"
+   },
+   {
+    "kind": "delete_pods_except",
+    "keep_uids": [
+     "pod-release-0001"
+    ],
+    "namespace": "demo",
+    "service_account": "release-reader"
+   },
+   {
+    "kind": "rotate_downstream_credential",
+    "service": "canary-service"
+   }
+  ],
+  "cost": 6.0,
+  "model_conclusion": "contained_within_scope",
+  "objectives": {
+   "protect-canary": "satisfied_within_scope",
+   "protect-secret": "satisfied_within_scope"
+  },
+  "legitimate_operations": {
+   "release-canary": true,
+   "release-read": true
+  },
+  "exposure_intervals": [
+   0,
+   1,
+   2
+  ],
+  "result_digest": "sha256:062849148fc9bc5b6b787b8f67c291dd62ab2951c253943cda6affebe63b1b53"
+ },
+ "cheapest_security_only_plan": {
+  "actions": [
+   {
+    "kind": "remove_binding",
+    "name": "release-reader-secret",
+    "namespace": "demo"
+   },
+   {
+    "kind": "rotate_downstream_credential",
+    "service": "canary-service"
+   }
+  ],
+  "cost": 4.0,
+  "model_conclusion": "contained_within_scope",
+  "objectives": {
+   "protect-canary": "satisfied_within_scope",
+   "protect-secret": "satisfied_within_scope"
+  },
+  "legitimate_operations": {
+   "release-canary": false,
+   "release-read": false
+  },
+  "exposure_intervals": [
+   0,
+   1
+  ],
+  "result_digest": "sha256:b650b2b9f864e751f2d8ea7769083e1c64984b397567a58da5b68f220fb61040"
+ },
+ "proposed_remediation": {
+  "actions": [
+   {
+    "kind": "remove_binding",
+    "name": "ci-pod-creator",
+    "namespace": "demo"
+   }
+  ],
+  "cost": 1.0,
+  "model_conclusion": "residual_path",
+  "objectives": {
+   "protect-canary": "violated",
+   "protect-secret": "violated"
+  },
+  "legitimate_operations": {
+   "release-canary": true,
+   "release-read": true
+  },
+  "exposure_intervals": [
+   0
+  ],
+  "result_digest": "sha256:512ff969d97ccb1f7b70842925b2164f51f95b5eaf321c029c8c29e8d5f7af11"
+ },
+ "naive_containment": {
+  "actions": [
+   {
+    "kind": "remove_binding",
+    "name": "ci-pod-creator",
+    "namespace": "demo"
+   },
+   {
+    "kind": "remove_binding",
+    "name": "release-reader-secret",
+    "namespace": "demo"
+   },
+   {
+    "kind": "delete_controllers_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "ci-runner"
+   },
+   {
+    "kind": "delete_pods_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "ci-runner"
+   },
+   {
+    "kind": "delete_controllers_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "release-reader"
+   },
+   {
+    "kind": "delete_pods_except",
+    "keep_uids": [],
+    "namespace": "demo",
+    "service_account": "release-reader"
+   }
+  ],
+  "cost": 10.0,
+  "model_conclusion": "residual_path",
+  "objectives": {
+   "protect-canary": "violated",
+   "protect-secret": "satisfied_within_scope"
+  },
+  "legitimate_operations": {
+   "release-canary": false,
+   "release-read": false
+  },
+  "exposure_intervals": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "result_digest": "sha256:3bf46f6b6b94a2a874194b05afdc1179b3d31e615bbde5dc2fa067e19403e7da"
+ }
+}
