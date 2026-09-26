@@ -33,16 +33,16 @@ AFTERLOCK 0.1.0, 3 repetitions per case and mode (determinism check only; no tim
 
 ## Lab-derived labels (separate label set)
 
-Labels from observed live-lab HTTP statuses in 5 receipts (`benchmarks/labels/lab-derived.json`); model predictions are not used to build them. Few objectives are covered; disputed labels: 0.
+Labels from observed live-lab HTTP statuses in 14 receipts (`benchmarks/labels/lab-derived.json`); model predictions are not used to build them. Few objectives are covered; disputed labels: 0.
 
 | Case | Objective | Lab label | Receipts | full | snapshot_only | history_without_lifecycle | final_state_only |
 |---|---|---|---|---|---|---|---|
-| admission-denied | protect-secret | satisfied_within_scope | 5 | satisfied_within_scope | satisfied_within_scope | satisfied_within_scope | satisfied_within_scope |
-| copied-downstream | protect-canary | violated | 4 | violated | satisfied_within_scope | violated | violated |
-| residual-token | protect-canary | violated | 4 | violated | satisfied_within_scope | violated | violated |
-| residual-token | protect-secret | violated | 5 | violated | satisfied_within_scope | violated | violated |
-| targeted-containment | legitimate:release-canary | preserved | 4 | preserved | preserved | preserved | preserved |
-| targeted-containment | protect-canary | satisfied_within_scope | 4 | satisfied_within_scope | satisfied_within_scope | violated | satisfied_within_scope |
+| admission-denied | protect-secret | satisfied_within_scope | 14 | satisfied_within_scope | satisfied_within_scope | satisfied_within_scope | satisfied_within_scope |
+| copied-downstream | protect-canary | violated | 13 | violated | satisfied_within_scope | violated | violated |
+| residual-token | protect-canary | violated | 13 | violated | satisfied_within_scope | violated | violated |
+| residual-token | protect-secret | violated | 14 | violated | satisfied_within_scope | violated | violated |
+| targeted-containment | legitimate:release-canary | preserved | 13 | preserved | preserved | preserved | preserved |
+| targeted-containment | protect-canary | satisfied_within_scope | 13 | satisfied_within_scope | satisfied_within_scope | violated | satisfied_within_scope |
 
 | Mode | Agreement with lab labels |
 |---|---|
