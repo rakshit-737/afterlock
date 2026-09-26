@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased): first vertical slice
+## 0.1.0 (2026-09-26): first research release
 
 - Typed temporal state model that separates permissions, credential possession,
   credential validity, and acquired knowledge (`afterlock.analysis-input/1`).
@@ -34,3 +34,9 @@
 - 44 held-out cases labelled by the reference checker; S-SEC-5 rotation propagation window.
 - Collector wired into the live lab. Fixed: `project()` crashed when one stolen token appeared
   in several audit events.
+- Adversarial reviews (API side and engine side): 14 confirmed defects fixed, including four
+  High-severity false-containment bugs; findings in `docs/security/review-2026-09-26-*.md`.
+- Possible-history credential expiry evaluated at use time (optional `history_start`).
+- API image installs dependencies from `uv.lock` with hash verification.
+- Documentation site: https://rakshit-737.github.io/afterlock/
+- Phase 12 final audit: `docs/engineering/final-audit.md`. Research-grade; not production-ready.
