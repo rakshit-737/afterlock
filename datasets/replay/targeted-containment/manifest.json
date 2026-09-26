@@ -1,0 +1,10 @@
+{
+  "case_id": "targeted-containment",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:d39888bbd99055e4a3fbbadee83b3e91cd6ed0841b4b31e44d32f8d004d58bbb",
+    "events.jsonl": "sha256:32ba7fed675c63ac7b8437db2de1906ac880aab5a22017f678ea2c7a6a80babf",
+    "inventory.json": "sha256:6529082eb9fbcc9592bf8a4aef2dd097a09eb2d22b2f7e43091b2fafb518d063"
+  },
+  "schema": "afterlock.replay/1"
+}
