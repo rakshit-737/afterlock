@@ -1,0 +1,10 @@
+{
+  "case_id": "admission-denied",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:60364e315a6c84b0f36b40ec74f1bd08264b172335b7bcefbf98b4d2c38e2baa",
+    "events.jsonl": "sha256:d666171ce91a54e1b40e1cb7b0645f9fa13767bbf631df841b7abb06ebe2970c",
+    "inventory.json": "sha256:003df5f44ed53f05536c1e8b3f20f8fdceb1dd9cb5bf45471b92059bff880c98"
+  },
+  "schema": "afterlock.replay/1"
+}
