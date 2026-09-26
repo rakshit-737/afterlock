@@ -1,0 +1,73 @@
+{
+  "analysis_time": "2026-01-01T12:30:00Z",
+  "assumptions": [
+    "Initial compromise of the CI service account is seeded, not exploited."
+  ],
+  "compromised_credentials": [
+    {
+      "audience": "https://kubernetes.default.svc.cluster.local",
+      "bound_pod_uid": "pod-ci-0001",
+      "id": "ci-runner-token",
+      "kind": "sa_token",
+      "sa_uid": "sa-ci-runner-0001",
+      "username": "system:serviceaccount:demo:ci-runner"
+    }
+  ],
+  "description": "The targeted plan would contain the modeled state, but an audit gap prevents establishing it.",
+  "legitimate_operations": [
+    {
+      "description": "release-app reads the current release credential.",
+      "id": "release-read",
+      "kind": "read_secret",
+      "namespace": "demo",
+      "pod_uid": "pod-release-0001",
+      "secret": "release-credential"
+    },
+    {
+      "description": "release-app authenticates to canary-service with the current credential.",
+      "id": "release-canary",
+      "kind": "use_downstream",
+      "pod_uid": "pod-release-0001",
+      "service": "canary-service"
+    }
+  ],
+  "max_evidence_staleness_seconds": 300,
+  "objectives": [
+    {
+      "description": "Prevent further Kubernetes reads of demo/release-credential by modeled attacker credentials.",
+      "id": "protect-secret",
+      "kind": "no_secret_read",
+      "namespace": "demo",
+      "secret": "release-credential"
+    },
+    {
+      "description": "Prevent use of any copied downstream credential against canary-service.",
+      "id": "protect-canary",
+      "kind": "no_downstream_use",
+      "service": "canary-service"
+    }
+  ],
+  "profile": "k8s-1.31-core-v1",
+  "remediation": [
+    {
+      "kind": "remove_binding",
+      "name": "ci-pod-creator",
+      "namespace": "demo"
+    },
+    {
+      "keep_uids": [
+        "pod-release-0001"
+      ],
+      "kind": "delete_pods_except",
+      "namespace": "demo",
+      "service_account": "release-reader"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "canary-service"
+    }
+  ],
+  "required_sources": [
+    "lab-audit"
+  ]
+}
