@@ -11,10 +11,12 @@ Pins recorded 2026-09-26.
 
 | Action | Pin | Tag | Used in |
 |---|---|---|---|
-| actions/checkout | `11d5960a326750d5838078e36cf38b85af677262` | v4.4.0 | ci.yml, live-lab.yml |
-| actions/setup-python | `a26af69be951a213d495a4c3e4e4022e16d87065` | v5.6.0 | ci.yml, live-lab.yml |
+| actions/checkout | `11d5960a326750d5838078e36cf38b85af677262` | v4.4.0 | ci.yml, live-lab.yml, docs.yml |
+| actions/setup-python | `a26af69be951a213d495a4c3e4e4022e16d87065` | v5.6.0 | ci.yml, live-lab.yml, docs.yml |
 | actions/upload-artifact | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | ci.yml, live-lab.yml |
-| astral-sh/setup-uv | `c18668ad3cf93ea998bef934396af7bb5c839dc7` | v10.2.0 | ci.yml, live-lab.yml |
+| astral-sh/setup-uv | `c18668ad3cf93ea998bef934396af7bb5c839dc7` | v10.2.0 | ci.yml, live-lab.yml, docs.yml |
+| actions/upload-pages-artifact | `fc324d3547104276b827a68afc52ff2a11cc49c9` | v5.0.0 | docs.yml |
+| actions/deploy-pages | `368f82528645a54fb793d4d04e342629a3f51346` | v5.0.1 | docs.yml |
 
 Resolve a tag to a commit:
 
