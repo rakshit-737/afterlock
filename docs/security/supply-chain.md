@@ -83,7 +83,9 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
   https://registry-1.docker.io/v2/library/python/manifests/3.11-slim | grep -i docker-content-digest
 # ghcr.io (uv image): anonymous token from ghcr.io itself
 TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:astral-sh/uv:pull" | jq -r .token)
-curl -sI -H "Authorization: Bearer $TOKEN"   -H "Accept: application/vnd.oci.image.index.v1+json"   https://ghcr.io/v2/astral-sh/uv/manifests/0.11.32 | grep -i docker-content-digest
+curl -sI -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/vnd.oci.image.index.v1+json" \
+  https://ghcr.io/v2/astral-sh/uv/manifests/0.11.32 | grep -i docker-content-digest
 ```
 
 For kind node images use the digest published in the kind release notes for the kind
