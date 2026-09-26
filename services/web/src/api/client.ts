@@ -4,11 +4,11 @@
 // Token handling: the token is supplied by a getter that reads in-memory state.
 // The client never stores it and never includes it in error messages.
 //
-// Async jobs: long-running POSTs (analyses, verification, plans) return a
-// `Submission<T>`. Today the API always answers synchronously (201/200), which
-// yields `{ state: "completed" }`. If a future API answers `202 Accepted` with a
-// job reference, the client returns `{ state: "accepted", job }` instead, and a
-// `JobApi` implementation can be plugged into `settle()` without touching callers.
+// Async jobs: long-running POSTs return a `Submission<T>`. The synchronous
+// endpoints answer 201/200, which yields `{ state: "completed" }`. The `*-jobs`
+// endpoints answer `202 Accepted` with a job reference, which yields
+// `{ state: "accepted", job }`; `settle()` then waits on it through a `JobApi`
+// (see ./jobs.ts for the polling implementation).
 
 import type {
   AnalysisCreated,
@@ -19,6 +19,8 @@ import type {
   CaseList,
   Health,
   InlineBundle,
+  JobOptions,
+  JobRecord,
   PlanRequest,
   PlanResult,
   VerificationResult,
@@ -48,11 +50,13 @@ export interface JobRef {
 export type Submission<T> = { state: "completed"; value: T } | { state: "accepted"; job: JobRef };
 
 /**
- * Plug-in point for asynchronous job endpoints. Not implemented against the
- * current API (it has no job endpoints); see docs/frontend/README.md.
+ * Waits on and cancels asynchronous jobs. `wait` resolves with the job's value
+ * (for analysis jobs `{id: result_id, result}`, otherwise `result`), rejects if
+ * the job fails or is cancelled, and reports every observed job state through
+ * `onUpdate`. Implemented by `PollingJobApi` in ./jobs.ts.
  */
 export interface JobApi {
-  wait<T>(job: JobRef, signal?: AbortSignal): Promise<T>;
+  wait<T>(job: JobRef, signal?: AbortSignal, onUpdate?: (job: JobRecord) => void): Promise<T>;
   cancel(job: JobRef): Promise<void>;
 }
 
@@ -64,10 +68,15 @@ export class AsyncJobsUnsupportedError extends Error {
 }
 
 /** Resolve a submission to its value, waiting on a job if a JobApi is available. */
-export async function settle<T>(sub: Submission<T>, jobs?: JobApi, signal?: AbortSignal): Promise<T> {
+export async function settle<T>(
+  sub: Submission<T>,
+  jobs?: JobApi,
+  signal?: AbortSignal,
+  onUpdate?: (job: JobRecord) => void,
+): Promise<T> {
   if (sub.state === "completed") return sub.value;
   if (!jobs) throw new AsyncJobsUnsupportedError(sub.job);
-  return jobs.wait<T>(sub.job, signal);
+  return jobs.wait<T>(sub.job, signal, onUpdate);
 }
 
 export interface ClientOptions {
@@ -159,6 +168,32 @@ export class AfterlockClient {
 
   plan(caseId: string, req: PlanRequest, signal?: AbortSignal): Promise<Submission<PlanResult>> {
     return this.submit<PlanResult>(`/v1/cases/${seg(caseId)}/plans`, req, signal);
+  }
+
+  // ---- asynchronous jobs (202 + Location) -------------------------------
+
+  submitAnalysisJob(
+    caseId: string,
+    req: AnalysisRequest & JobOptions,
+    signal?: AbortSignal,
+  ): Promise<Submission<AnalysisCreated>> {
+    return this.submit<AnalysisCreated>(`/v1/cases/${seg(caseId)}/analysis-jobs`, req, signal);
+  }
+
+  submitPlanJob(caseId: string, req: PlanRequest & JobOptions, signal?: AbortSignal): Promise<Submission<PlanResult>> {
+    return this.submit<PlanResult>(`/v1/cases/${seg(caseId)}/plan-jobs`, req, signal);
+  }
+
+  submitVerificationJob(analysisId: string, opts: JobOptions = {}, signal?: AbortSignal): Promise<Submission<VerificationResult>> {
+    return this.submit<VerificationResult>(`/v1/analyses/${seg(analysisId)}/verification-jobs`, opts, signal);
+  }
+
+  getJob(jobId: string, signal?: AbortSignal): Promise<JobRecord> {
+    return this.json<JobRecord>("GET", `/v1/jobs/${seg(jobId)}`, undefined, signal);
+  }
+
+  cancelJob(jobId: string, signal?: AbortSignal): Promise<JobRecord> {
+    return this.json<JobRecord>("POST", `/v1/jobs/${seg(jobId)}/cancel`, {}, signal);
   }
 
   // ---- transport -------------------------------------------------------
