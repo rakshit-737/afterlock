@@ -27,7 +27,7 @@ jobs:
       - name: Install (from uv.lock, frozen)
         run: |
           uv lock --check
-          uv sync --frozen --extra dev --extra postgres
+          uv sync --frozen --extra dev --extra postgres --extra oidc
       - name: Doctor (replay profile)
         run: python scripts/doctor --profile replay
       - name: Lint
