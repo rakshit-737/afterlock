@@ -407,6 +407,11 @@ def _strs(value: Any, where: str) -> tuple[str, ...]:
     return tuple(out)
 
 
+def _not_reserved(uid: str, where: str) -> None:
+    if uid.startswith(MODEL_UID_PREFIXES):
+        raise ModelError(f"{where}: UID {uid!r} uses a prefix reserved for model-created objects {MODEL_UID_PREFIXES}")
+
+
 def _unique(items: Sequence[Any], key: Any, where: str) -> None:
     seen: set[Any] = set()
     for it in items:
@@ -536,6 +541,10 @@ def parse_inventory(raw: Mapping[str, Any]) -> Inventory:
     _unique(bindings, lambda b: (b.namespace, b.name), f"{w}.bindings")
     _unique(secrets, lambda s: (s.namespace, s.name), f"{w}.secrets")
     _unique(services, lambda s: s.name, f"{w}.services")
+    # The engine's canonicalization (one live model workload per namespace and SA) is
+    # sound only if no observed object can carry a model UID.
+    for uid in [p.uid for p in pods] + [c.uid for c in controllers]:
+        _not_reserved(uid, w)
     ctrl_uids = {c.uid for c in controllers}
     for p in pods:
         if p.controller_uid is not None and p.controller_uid not in ctrl_uids:
@@ -579,8 +588,8 @@ def _parse_action(raw: Any, where: str) -> DefenderAction:
     params: list[tuple[str, str]] = []
     for key in required:
         params.append((key, _req(m, key, where)))
-    if kind in ("delete_pod", "delete_controller") and dict(params)["uid"].startswith(MODEL_UID_PREFIXES):
-        raise ModelError(f"{where}: UIDs with prefixes {MODEL_UID_PREFIXES} are reserved for model-created objects")
+    if kind in ("delete_pod", "delete_controller"):
+        _not_reserved(dict(params)["uid"], where)
     if kind in ("delete_pods_except", "delete_controllers_except"):
         keep = sorted(set(_strs(m.get("keep_uids"), f"{where}.keep_uids")))
         if any("," in k for k in keep):
@@ -649,6 +658,8 @@ def parse_analysis_input(raw: Mapping[str, Any]) -> AnalysisInput:
         status = _req(m, "status", "initial_facts")
         if status not in EPISTEMIC_STATUSES:
             raise ModelError(f"initial_facts: unknown epistemic status {status!r}")
+        if kind in ("controls_pod", "controls_controller", "historical_pod"):
+            _not_reserved(args[0], "initial_facts")
         if kind == "possesses_credential" and args[0] not in cred_ids:
             raise ModelError(f"initial_facts: unknown credential {args[0]!r}")
         if kind == "knows_secret":
