@@ -11,6 +11,8 @@ package audit
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -155,7 +157,15 @@ func (in *Ingester) ingest(ev *event, where string) error {
 	}
 	rec := toEnvelope(ev, ts)
 	rec["event_id"] = "audit:" + auditID
-	_, err = in.Spool.Append(rec, "audit:"+auditID)
+	// The API server accepts a client-supplied Audit-ID header, so the auditID alone
+	// is attacker-choosable. Only a redelivery with identical metadata is a duplicate;
+	// a reused ID with different content is kept (it gets its own source_sequence).
+	content, err := json.Marshal(rec) // map keys are sorted: deterministic
+	if err != nil {
+		return err
+	}
+	sum := sha256.Sum256(content)
+	_, err = in.Spool.Append(rec, "audit:"+auditID+":"+hex.EncodeToString(sum[:8]))
 	switch {
 	case errors.Is(err, spool.ErrDuplicate):
 		in.Counters.Duplicates.Add(1)
