@@ -422,9 +422,9 @@ def project(bundle: ReplayBundle) -> tuple[dict[str, Any], dict[str, Any]]:
                         "expires_at": parse_time(actor["credential_expires_at"], "credential_expires_at") if "credential_expires_at" in actor else None,
                     },
                 )
-                if credentials[cid]["sa_uid"] is None:
+                if credentials[cid].get("sa_uid", "") is None:
                     credentials[cid].pop("sa_uid")
-                if credentials[cid]["expires_at"] is None:
+                if credentials[cid].get("expires_at", "") is None:
                     credentials[cid].pop("expires_at")
                 add_fact("possesses_credential", (cid,), "observed", ref, "credential observed in use")
         verb, resource, ns = action.get("verb"), action.get("resource"), action.get("namespace")
