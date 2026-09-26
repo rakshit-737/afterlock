@@ -78,9 +78,9 @@ def test_valid_rs256_and_es256() -> None:
 @pytest.mark.parametrize("bad", [
     {"iss": "https://evil.test"},
     {"aud": "someone-else"},
-    {"exp": int(time.time()) - 120},
-    {"nbf": int(time.time()) + 120},
-    {"iat": int(time.time()) + 120},
+    {"exp": -120},  # seconds relative to when the test runs
+    {"nbf": 120},  # seconds relative to when the test runs
+    {"iat": 120},  # seconds relative to when the test runs
     {"exp": None},
     {"iat": None},
     {"afterlock_role": "root"},
@@ -90,8 +90,12 @@ def test_valid_rs256_and_es256() -> None:
     {"afterlock_clusters": ["*"]},
 ])
 def test_rejected_claims(bad: dict[str, Any]) -> None:
+    # Time claims are offsets resolved now: parametrize values are built at collection time,
+    # which can be minutes before this test runs on a slow CI suite.
+    now = int(time.time())
+    resolved = {k: now + v if k in ("exp", "nbf", "iat") and isinstance(v, int) else v for k, v in bad.items()}
     with pytest.raises(OIDCError):
-        validator().validate(sign(claims(**bad)))
+        validator().validate(sign(claims(**resolved)))
 
 
 def test_small_leeway_accepts_slight_clock_skew() -> None:
