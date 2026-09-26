@@ -22,7 +22,9 @@ private contact channel; do not include details in the issue.
 
 ## Known gaps (tracked in docs/engineering/status.md)
 
-- No adversarial security review has been performed yet (design phase 9).
-- GitHub Actions are pinned by tag, not by commit SHA.
-- Container base images are not pinned by digest, and no SBOM is generated yet.
+- Only a pattern-based starter review exists (docs/security/review-2026-09-26.md); the full
+  adversarial review (design phase 9) has not been performed.
+- Actions are SHA-pinned, images digest-pinned, CI installs from `uv.lock`, and CI emits a
+  CycloneDX SBOM (docs/security/supply-chain.md). Not yet done: signed/attested release
+  artifacts and provenance; the API container build does not install from the lockfile.
 - API authentication is static bearer tokens only (local bootstrap). There is no OIDC yet.
