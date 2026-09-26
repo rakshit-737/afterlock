@@ -189,6 +189,9 @@ def _reconcile(env: tuple) -> tuple:
         if any(p[5] == c[0] for p in pods):
             continue
         k = cnt.get(c[0], 0) + 1
+        taken = {p[0] for p in pods}
+        while f"{c[0]}-p{k}" in taken:  # never shadow an existing Pod's UID
+            k += 1
         cnt[c[0]] = k
         pods.add((f"{c[0]}-p{k}", c[1], f"{c[2]}-p{k}", c[3], c[4], c[0]))
     return (t, sas, frozenset(pods), ctrls, binds, secs, svcs, frozenset(cnt.items()))
