@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Live lab wrapper. Only for a disposable Docker-capable Linux host.
+# Usage: scripts/lab {create|spike|demo|verify|status|destroy} [--scenario residual-token]
+set -eu
+cd "$(dirname "$0")/.."
+cmd="${1:-}"
+exec python3 labs/supervisor/lab.py "$cmd"
