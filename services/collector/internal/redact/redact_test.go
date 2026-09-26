@@ -1,9 +1,34 @@
 package redact
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 )
+
+// Phase 9 review: encoded credentials and key variants must be caught, mirroring
+// packages/afterlock/evidence.py, or the collector emits values the loader rejects.
+func TestEncodedCredentialsAreSensitive(t *testing.T) {
+	jwt := "eyJhbGciOiJSUzI1NiIsImtpZCI6ImZha2UifQ.eyJzdWIiOiJmYWtlIn0.c2lnbmF0dXJl"
+	for _, in := range []string{
+		base64.StdEncoding.EncodeToString([]byte(jwt)),
+		base64.RawURLEncoding.EncodeToString([]byte(jwt)),
+		strings.ReplaceAll(jwt, ".", "%2E"),
+		base64.StdEncoding.EncodeToString([]byte("-----BEGIN RSA PRIVATE KEY-----\nMIIE")),
+	} {
+		if !Sensitive(in) {
+			t.Errorf("Sensitive(%q) = false", in)
+		}
+	}
+	for _, k := range []string{"accessToken", "id_token", "clientSecret", "apiKey", "private_key"} {
+		if p := Check([]byte(`{"` + k + `":"opaque"}`)); len(p) != 1 {
+			t.Errorf("key %q: problems = %v, want 1", k, p)
+		}
+	}
+	if p := Check([]byte(`{"token_audiences":["x"],"source_secret":"s"}`)); len(p) != 0 {
+		t.Errorf("benign keys flagged: %v", p)
+	}
+}
 
 func TestStringRedactsCredentialLikeValues(t *testing.T) {
 	for _, in := range []string{
