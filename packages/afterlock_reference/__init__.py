@@ -138,16 +138,23 @@ def _can_read(st: _Static, env: tuple, user: str, ns: str, name: str) -> bool:
     return any(_granting(st, env, user, v, "secrets", ns, name) for v in ("watch", "list", "get"))
 
 
-def _cred_ok(st: _Static, env: tuple, cred: tuple) -> str:
-    """'ok' | 'bad' | 'unsupported'. cred = (id, kind, user, sa_uid, pod_uid, aud, exp)."""
+def _cred_ok(st: _Static, env: tuple, cred: tuple, window: tuple | None = None) -> str:
+    """'ok' | 'bad' | 'unsupported'. cred = (id, kind, user, sa_uid, pod_uid, aud, exp).
+
+    ``window`` = (lo, hi) marks a possible-history check: the use may happen at any
+    instant t with lo <= t <= hi (lo None: unbounded below), so the token passes the
+    expiry rule iff some such t has t < exp. Otherwise the instant is env time.
+    """
     _, kind, user, sa_uid, pod_uid, aud, exp = cred
     if kind != "sa_token":
         return "unsupported"
     sa = _sa_of(user)
     if sa is None:
         return "unsupported"
-    if exp is not None and env[0] >= exp:
-        return "bad"
+    if exp is not None:
+        earliest = env[0] if window is None else window[0]
+        if earliest is not None and not (earliest < exp):
+            return "bad"
     if aud not in st.api_auds:
         return "bad"
     match = [s for s in env[1] if (s[0], s[1]) == sa]
@@ -247,7 +254,8 @@ def _defend(env: tuple, a: dict[str, Any]) -> tuple:
 #   creds frozenset[(id, kind, user, sa_uid, pod_uid, aud, exp)]
 
 
-def _attacker_steps(st: _Static, env: tuple, att: tuple, lim: ReferenceLimits, creation: bool, unknown: set) -> Iterable[tuple[tuple, tuple]]:
+def _attacker_steps(st: _Static, env: tuple, att: tuple, lim: ReferenceLimits, creation: bool, unknown: set,
+                    window: tuple | None = None) -> Iterable[tuple[tuple, tuple]]:
     creds, cpods, cctrls, know = att
     live_pods = {p[0]: p for p in env[2]}
     # obtain projected tokens from controlled live pods
@@ -268,7 +276,7 @@ def _attacker_steps(st: _Static, env: tuple, att: tuple, lim: ReferenceLimits, c
             yield env, (creds, cpods | {p[0]}, cctrls, know)
     namespaces = sorted({s[0] for s in env[1]} | {p[1] for p in env[2]})
     for c in sorted(creds, key=lambda x: (x[0], x[6] or 0)):
-        ok = _cred_ok(st, env, c)
+        ok = _cred_ok(st, env, c, window)
         if ok == "unsupported":
             unknown.add(("unsupported_credential", c[0]))
             continue
@@ -374,7 +382,9 @@ def explore(raw: dict[str, Any], limits: ReferenceLimits | None = None) -> dict[
         unknown: set = set()
         att, hist = _initial(raw, view)
         env = _env0(raw["inventory"], int(raw["analysis_time"]))
-        if view == "conservative_possible" and hist:
+        t_an = int(raw["analysis_time"])
+        lapsed = [c for c in att[0] if c[6] is not None and c[6] <= t_an]
+        if view == "conservative_possible" and (hist or lapsed):
             henv = env[:2] + (env[2] | {(u, ns, u, sa, (), None) for (u, ns, sa) in hist if u not in {p[0] for p in env[2]}},) + env[3:]
             creds, cpods, cctrls, know = att
             att = (creds, cpods | {h[0] for h in hist}, cctrls, know)
@@ -389,7 +399,7 @@ def explore(raw: dict[str, Any], limits: ReferenceLimits | None = None) -> dict[
             while hq:
                 e, a = hq.popleft()
                 union = (union[0] | a[0], union[1] | a[1], union[2] | a[2], union[3] | a[3])
-                for e2, a2 in _attacker_steps(st, e, a, lim, True, unknown):
+                for e2, a2 in _attacker_steps(st, e, a, lim, True, unknown, (raw.get("history_start"), t_an)):
                     if len(hseen) >= lim.max_states:
                         history_complete = False
                         break
@@ -516,7 +526,16 @@ def verify_witnesses(raw: dict[str, Any], bundle: dict[str, Any]) -> dict[str, A
                 continue
             env = envs[i] if i >= 0 else _history_env(raw, facts_in, created.get(-1, []))
             for c in s["conditions"]:
-                problems += _check(st, env, c, fact, derived_creds)
+                cenv = env
+                if i == -1 and c["check"] == "credential_usable":
+                    # Possible history: a use is checked at its claimed instant, which
+                    # must lie inside [history_start, analysis_time].
+                    t, lo, hi = c.get("time"), raw.get("history_start"), int(raw["analysis_time"])
+                    if not isinstance(t, int) or t > hi or (lo is not None and t < lo):
+                        problems.append(f"{fact}: history use time {t!r} outside the history window")
+                        continue
+                    cenv = (t,) + env[1:]
+                problems += _check(st, cenv, c, fact, derived_creds)
             if s["rule"] == "R-OBTAIN-PROJECTED-TOKEN":
                 pod = [p for p in env[2] if p[0] == s["premises"][0][1]]
                 if not pod:
