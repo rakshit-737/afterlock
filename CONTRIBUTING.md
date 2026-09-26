@@ -2,7 +2,7 @@
 
 Thank you for helping make false containment claims harder to produce.
 
-1. Read [AGENTS.md](AGENTS.md). It is the engineering contract for humans and agents alike.
+1. Read [AGENTS.md](https://github.com/rakshit-737/afterlock/blob/main/AGENTS.md). It is the engineering contract for humans and agents alike.
 2. Keep pull requests small, and focus each one on a single concern.
 3. Run `./scripts/verify` and list the exact commands in the PR template.
 
