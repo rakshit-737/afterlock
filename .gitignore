@@ -22,5 +22,7 @@ sbom/
 # Frontend (services/web)
 node_modules/
 services/web/dist/
+services/web/test-results/
+services/web/playwright-report/
 coverage/
 benchmarks/reports/*.local.json
