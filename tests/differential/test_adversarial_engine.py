@@ -104,6 +104,38 @@ def test_controller_replacement_does_not_overwrite_an_existing_pod() -> None:
     assert len(tl) == 1 and tl[0] != "ctrl-p1" and tl[0].startswith("ctrl-p")
 
 
+@pytest.mark.parametrize("verb", ["list", "watch"])
+def test_list_or_watch_on_secrets_reads_them(verb: str) -> None:
+    """A-3: Kubernetes returns Secret data to list and watch. Only ``get`` was modelled,
+    so a credential holding only ``list secrets`` was reported as contained."""
+    raw = _raw([])
+    raw["inventory"]["roles"][1]["rules"] = [{"verbs": [verb], "resources": ["secrets"]}]
+    raw["inventory"]["bindings"] = [{"namespace": "n", "name": "b1", "role_kind": "Role", "role_name": "rd",
+                                     "subjects": [{"kind": "ServiceAccount", "namespace": "n", "name": "ci"}]}]
+    raw["inventory"]["services"] = [{"name": "svc", "source_namespace": "n", "source_secret": "s", "accepted_version": 1}]
+    raw["objectives"].append({"id": "d", "kind": "no_downstream_use", "service": "svc"})
+    raw["remediation"] = [{"kind": "remove_binding", "namespace": "n", "name": "b1"}]
+    bundle = analyze(parse_analysis_input(raw))
+    assert {o["id"]: o["status"] for o in bundle["objectives"]} == {"o": "satisfied_within_scope", "d": "violated"}
+    assert assert_agree(raw)
+    assert all(r["valid"] for r in ref.verify_witnesses(raw, bundle).values())
+    raw["remediation"] = []
+    assert analyze(parse_analysis_input(raw))["conclusion"]["model"] == "residual_path"
+    assert ref.explore(raw)["views"]["evidence_supported"]["reachable_objectives"] == ["d", "o"]
+
+
+def test_list_with_resource_names_reads_only_named_secrets() -> None:
+    """Negative control: a resourceNames-restricted list rule (usable with a
+    metadata.name field selector) covers the named Secret only."""
+    raw = _raw([])
+    raw["inventory"]["secrets"].append({"namespace": "n", "name": "other", "uid": "y", "version": 1})
+    raw["inventory"]["roles"][1]["rules"] = [{"verbs": ["list"], "resources": ["secrets"], "resource_names": ["other"]}]
+    raw["inventory"]["bindings"] = [{"namespace": "n", "name": "b1", "role_kind": "Role", "role_name": "rd",
+                                     "subjects": [{"kind": "ServiceAccount", "namespace": "n", "name": "ci"}]}]
+    assert analyze(parse_analysis_input(raw))["conclusion"]["model"] == "contained_within_scope"
+    assert assert_agree(raw)
+
+
 def test_expiry_on_the_interval_boundary_is_expired() -> None:
     """S-TOK-1 is strict (time < expires_at); a wait landing exactly on expiry contains."""
     raw = _raw([])
