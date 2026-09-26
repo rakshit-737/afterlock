@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-api = ["fastapi>=0.110", "pydantic>=2.6", "uvicorn==0.30.6"]
+api = ["fastapi>=0.110", "pydantic>=2.6", "uvicorn==0.53.0"]
 # PostgreSQL storage backend and worker (services/api, services/worker only; never the core packages).
 postgres = ["psycopg[binary]>=3.2,<4"]
 # Native OIDC bearer-JWT validation in services/api (RS256/ES256 via cryptography). Never the core packages.
