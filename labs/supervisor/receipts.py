@@ -6,8 +6,61 @@ network-policy construction can be unit tested without a lab.
 
 from __future__ import annotations
 
+import copy
+import math
 import statistics
 from typing import Any
+
+# ---------------------------------------------------------------- S-SEC-5 (rotation propagation)
+
+
+def propagation_seconds(acknowledged_after: float) -> int:
+    """Integer rotation_propagation_seconds d for the model from a measured acknowledgement time.
+
+    The acknowledgement time (new value accepted AND old value rejected) is an upper
+    bound on the real propagation instant, so d = ceil(ack) over-approximates the
+    window in which the old value works (conservative for the attacker).
+    """
+    if acknowledged_after < 0:
+        raise ValueError("negative acknowledgement time")
+    return math.ceil(acknowledged_after)
+
+
+def with_rotation_propagation(analysis_input: dict[str, Any], *, service: str, delay_seconds: int,
+                              wait_seconds: int | None = None) -> dict[str, Any]:
+    """A copy of an afterlock.analysis-input/1 document with d set on one service and,
+    optionally, a trailing ``wait`` step appended to the remediation."""
+    if delay_seconds < 0 or (wait_seconds is not None and wait_seconds < 0):
+        raise ValueError("delay and wait must be >= 0")
+    out = copy.deepcopy(analysis_input)
+    services = [s for s in out["inventory"].get("services", []) if s.get("name") == service]
+    if len(services) != 1:
+        raise ValueError(f"expected exactly one service {service!r}")
+    services[0]["rotation_propagation_seconds"] = delay_seconds
+    if wait_seconds is not None:
+        out["remediation"] = [*out.get("remediation", []), {"kind": "wait", "seconds": wait_seconds}]
+    return out
+
+
+def rotation_window(probes: list[tuple[float, int]]) -> dict[str, Any]:
+    """Summarise old-credential probes [(seconds since rotation, HTTP status)] in time order.
+
+    Reports what was observed, nothing more: the first probe, the last time the old
+    value was accepted, the first time it was refused, and whether it was accepted
+    again after a refusal (which would contradict monotone propagation).
+    """
+    accepted = [t for t, s in probes if 200 <= s < 300]
+    refused = [t for t, s in probes if s >= 300]
+    first_refused = min(refused) if refused else None
+    return {
+        "probes": len(probes),
+        "first_probe_seconds": probes[0][0] if probes else None,
+        "first_probe_status": probes[0][1] if probes else None,
+        "last_accepted_seconds": max(accepted) if accepted else None,
+        "first_refused_seconds": first_refused,
+        "reaccepted_after_refusal": first_refused is not None and any(t > first_refused for t in accepted),
+        "window_observed": bool(probes) and 200 <= probes[0][1] < 300,
+    }
 
 # Expectation modes for one observed step.
 #   "answer_ok"     - an HTTP answer in 2xx is expected (access works)
