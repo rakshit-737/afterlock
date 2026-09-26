@@ -1,0 +1,10 @@
+{
+  "case_id": "controller-replacement",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:5590bd27e5227efee56f4aa07ab037405566196bf30639dab246458a8c012a6c",
+    "events.jsonl": "sha256:fd450e50494052474a7ffc87a3d8ae62e4b3f0972c90dcbebcd0400fbc9e4eb7",
+    "inventory.json": "sha256:8e1c219e266c243eef978181826c323bec5f61021349f1074511b0f8397667ae"
+  },
+  "schema": "afterlock.replay/1"
+}
