@@ -5,7 +5,7 @@ describes what exists **now**. Planned components are marked as such.
 
 ```mermaid
 flowchart TD
-    A["afterlock-collector (Go, planned)"] -.-> C
+    A["afterlock-collector (Go): services/collector"] --> D
     D["Replay bundles (afterlock.replay/1)"] --> C["Evidence projector: packages/afterlock/evidence.py"]
     C --> I["Canonical analysis input (afterlock.analysis-input/1)"]
     I --> G["Capability engine: engine.py + semantics.py"]
@@ -34,11 +34,11 @@ flowchart TD
 | Reference checker | `packages/afterlock_reference` | implemented | stdlib only (**never** `afterlock`) |
 | CLI | `packages/afterlock/cli.py` | implemented | all of the above |
 | API | `services/api/afterlock_api` | implemented; in-memory or PostgreSQL storage | afterlock, fastapi, pydantic, psycopg (storage.py/migrate.py only) |
-| Lab supervisor | `labs/supervisor/lab.py` | written, **not executed** | kind, kubectl, afterlock (for predictions) |
+| Lab supervisor | `labs/supervisor/lab.py` | implemented; executed in the `live-lab` workflow (receipts in `labs/receipts/`) | kind, kubectl, afterlock (for predictions) |
 | Storage + migrations | `services/api/afterlock_api/{storage,migrate}.py`, `migrations/` | implemented; PostgreSQL path tested only in CI `postgres` job | psycopg 3 (optional extra `postgres`) |
 | Worker / PostgreSQL job queue | `services/worker/afterlock_worker` | implemented | afterlock, afterlock_reference, afterlock_api.storage |
-| Go metadata collector | `services/collector` | planned | — |
-| Investigation frontend | `web/` | planned | — |
+| Go metadata collector | `services/collector` | implemented; lab-confirmed for two cases (`labs/receipts/collect-*.json`) | client-go (separate Go module) |
+| Investigation frontend | `services/web` | implemented (React/Vite/TypeScript) | talks to the API over HTTP only |
 
 `tests/security/test_redaction_and_boundaries.py` enforces the dependency direction.
 The domain modules cannot import adapter libraries, and the reference checker cannot
