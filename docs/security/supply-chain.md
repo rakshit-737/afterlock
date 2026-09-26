@@ -36,13 +36,31 @@ Write the result as `uses: owner/repo@<40-hex-sha> # vX.Y.Z`. Dependabot
 - Update: edit `pyproject.toml` if ranges change, then `uv lock --upgrade-package <name>`
   (or `uv lock --upgrade`), run `./scripts/verify`, commit `pyproject.toml` and `uv.lock`
   together. Dependabot's `uv` ecosystem does the same.
-- Update uv itself: change `version:` in every `setup-uv` step.
+- Update uv itself: change `version:` in every `setup-uv` step and the
+  `ghcr.io/astral-sh/uv` pin in `services/api/Dockerfile` (same version, new digest).
+
+### API/worker image (services/api/Dockerfile)
+
+- The build stage copies uv (digest-pinned, below) and runs
+  `uv export --frozen --no-dev --extra api --extra postgres --no-emit-project --format requirements-txt`,
+  which emits every locked package with its `uv.lock` hashes.
+- `pip install --require-hashes --no-deps --only-binary=:all:` installs exactly that list;
+  pip refuses any file whose hash is not in the lock, and nothing is resolved at build time.
+- The project itself is then installed with `--no-deps --no-index --no-build-isolation`.
+  Its build backend comes from `services/api/build-requirements.txt` (setuptools `80.9.0`,
+  hash-pinned, build stage only). Regenerate that file with the command in its header.
+- CI (`containers` job, "API image packages match uv.lock") installs the same export into
+  a scratch Linux 3.11 venv and diffs its `pip freeze` against `pip freeze` inside the built
+  image (ignoring `afterlock` itself). Any extra, missing, or differently versioned package fails.
+- Changing extras for the image means editing the `--extra` flags in both the Dockerfile
+  and that CI step.
 
 ## Container images (digest)
 
 | Image | Digest | Used in |
 |---|---|---|
 | python:3.11-slim | `sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e` | services/api/Dockerfile (both stages) |
+| ghcr.io/astral-sh/uv:0.11.32 | `sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c` | services/api/Dockerfile (build stage, `/uv` binary only) |
 | kindest/node:v1.31.4 | `sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30` | labs/kind/cluster.yaml (matches the kind v0.26.0 release notes) |
 | busybox:1.36.1 | `sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662` | labs/manifests/*.yaml, labs/supervisor/lab.py |
 | python:3.12-alpine | `sha256:4c47124a8391cb7a9f571164147d154777cf012a4ece5f86097130d7a4478111` | labs/manifests/canary-service.yaml |
@@ -63,6 +81,9 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/vnd.oci.image.index.v1+json" \
   -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
   https://registry-1.docker.io/v2/library/python/manifests/3.11-slim | grep -i docker-content-digest
+# ghcr.io (uv image): anonymous token from ghcr.io itself
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:astral-sh/uv:pull" | jq -r .token)
+curl -sI -H "Authorization: Bearer $TOKEN"   -H "Accept: application/vnd.oci.image.index.v1+json"   https://ghcr.io/v2/astral-sh/uv/manifests/0.11.32 | grep -i docker-content-digest
 ```
 
 For kind node images use the digest published in the kind release notes for the kind
@@ -87,8 +108,6 @@ binary, so this detects corruption, not an upstream compromise.
 
 ## Known gaps
 
-- `services/api/Dockerfile` installs `.[api]` and `uvicorn==0.30.6` with pip, resolving
-  transitive dependencies at build time instead of from `uv.lock`.
 - No signed artifacts, provenance attestations, or SBOM for the container images.
 - Calico's container images are referenced by tag inside the upstream `calico.yaml`; the
   manifest itself is SHA-256-pinned (`CALICO_SHA256` in `labs/supervisor/lab.py`), so the
