@@ -8,7 +8,7 @@ Every claim is paired with the test that could falsify it and the evidence avail
 | C2 | Deleting the bound Pod makes its token unusable against the API | Lab: time until HTTP 401 after the deletion completes | Not run. The model assumes it happens before the next step |
 | C3 | History-aware analysis makes fewer false containment claims than snapshot-only analysis | Compare on independently labelled lab executions | Hand-authored corpus only: 0/6 vs 5/11 (`benchmarks/reports`). Circular labels; **not evidence of real-world accuracy** |
 | C4 | Interleaving analysis catches ordering failures that final-state analysis misses | `defender-race` in the lab | Hand-authored corpus only |
-| C5 | The engine agrees with an independently written explorer on small models | Hypothesis differential tests | Passing: 16 cases plus generated suites (see verification.md for counts) |
+| C5 | The engine agrees with an independently written explorer on small models | Hypothesis differential tests | Passing: 16 cases plus generated suites (see verification.md for counts), and 44/44 held-out template cases (`datasets/heldout/`, reference-derived labels, `benchmarks/reports`) |
 | C6 | Witnesses are independently checkable | `verify_witnesses` across all cases and generated inputs | Passing. One engine bug was found and fixed this way |
 | C7 | Constrained planning is less disruptive than naive containment | Legitimate-operation checks in the lab | Model only: the naive plan breaks `release-app`, the found plan preserves it |
 | C8 | Missing evidence never yields containment | Gap, stale, rejected, conflicting, and unsupported cases | Unit tests pass; a mutation test confirms detection |
