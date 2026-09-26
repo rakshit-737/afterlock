@@ -1,0 +1,10 @@
+{
+  "case_id": "same-name-recreation",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:b4789921999fa67305aee0eac0e913ec7a49a491c7bcb28331ab3927f95a3fbf",
+    "events.jsonl": "sha256:32ba7fed675c63ac7b8437db2de1906ac880aab5a22017f678ea2c7a6a80babf",
+    "inventory.json": "sha256:132c351e4d57fe8b764641d2c2eb0b3205e7d85892461c91c0e7cf94d1eb023a"
+  },
+  "schema": "afterlock.replay/1"
+}
