@@ -1,0 +1,60 @@
+# Synthetic lab scenario "residual-token". Contains no credential values: the
+# fake Secret value is generated at runtime by the supervisor and never stored.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    afterlock.dev/lab: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: ci-runner, namespace: demo, labels: {afterlock.dev/lab: "true"}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: release-reader, namespace: demo, labels: {afterlock.dev/lab: "true"}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: pod-creator, namespace: demo, labels: {afterlock.dev/lab: "true"}}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: release-secret-reader, namespace: demo, labels: {afterlock.dev/lab: "true"}}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["release-credential"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: ci-pod-creator, namespace: demo, labels: {afterlock.dev/lab: "true"}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: pod-creator}
+subjects:
+  - {kind: ServiceAccount, name: ci-runner, namespace: demo}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: release-reader-secret, namespace: demo, labels: {afterlock.dev/lab: "true"}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: release-secret-reader}
+subjects:
+  - {kind: ServiceAccount, name: release-reader, namespace: demo}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: release-app, namespace: demo, labels: {afterlock.dev/lab: "true", app: release}}
+spec:
+  serviceAccountName: release-reader
+  automountServiceAccountToken: true
+  securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: app
+      image: busybox:1.36.1
+      command: ["sleep", "86400"]
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
