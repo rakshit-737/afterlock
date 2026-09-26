@@ -1,0 +1,10 @@
+{
+  "case_id": "controller-contained",
+  "cluster_id": "lab-local",
+  "files": {
+    "case.json": "sha256:c34ec48b71121a171272b942e50e59bc06e5f1fd6a96187cd6672b683a2f0bc0",
+    "events.jsonl": "sha256:fd450e50494052474a7ffc87a3d8ae62e4b3f0972c90dcbebcd0400fbc9e4eb7",
+    "inventory.json": "sha256:8e1c219e266c243eef978181826c323bec5f61021349f1074511b0f8397667ae"
+  },
+  "schema": "afterlock.replay/1"
+}
