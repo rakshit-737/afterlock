@@ -1,0 +1,135 @@
+{
+  "analysis_time": 1800000000,
+  "assumptions": [
+    "Deleting the pods leaves the controller, which recreates one and rereads the rotated key."
+  ],
+  "bounds": {},
+  "case_id": "controller-recreate-2-delete-pods",
+  "cluster_id": "heldout",
+  "coverage_gaps": [],
+  "credentials": [],
+  "initial_facts": [
+    {
+      "args": [
+        "deploy-ops-reporter"
+      ],
+      "evidence": [],
+      "kind": "controls_controller",
+      "status": "observed"
+    }
+  ],
+  "inventory": {
+    "admission_policies": [],
+    "bindings": [
+      {
+        "name": "reporter-keys",
+        "namespace": "ops",
+        "role_kind": "Role",
+        "role_name": "key-reader",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "reporter",
+            "namespace": "ops"
+          }
+        ]
+      }
+    ],
+    "controllers": [
+      {
+        "name": "reporter",
+        "namespace": "ops",
+        "service_account": "reporter",
+        "uid": "deploy-ops-reporter"
+      }
+    ],
+    "pods": [
+      {
+        "controller_uid": "deploy-ops-reporter",
+        "name": "reporter-p0",
+        "namespace": "ops",
+        "service_account": "reporter",
+        "uid": "pod-ops-reporter-p0"
+      }
+    ],
+    "roles": [
+      {
+        "name": "key-reader",
+        "namespace": "ops",
+        "rules": [
+          {
+            "resources": [
+              "secrets"
+            ],
+            "verbs": [
+              "get"
+            ]
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "name": "report-key",
+        "namespace": "ops",
+        "uid": "sec-ops-rk",
+        "version": 1
+      }
+    ],
+    "service_accounts": [
+      {
+        "name": "reporter",
+        "namespace": "ops",
+        "uid": "sa-ops-reporter"
+      },
+      {
+        "name": "app0",
+        "namespace": "ops",
+        "uid": "sa-ops-app0"
+      }
+    ],
+    "services": [
+      {
+        "accepted_version": 1,
+        "name": "api-0",
+        "source_namespace": "ops",
+        "source_secret": "report-key"
+      }
+    ]
+  },
+  "legitimate_operations": [],
+  "objectives": [
+    {
+      "id": "protect-ops-report-key",
+      "kind": "no_secret_read",
+      "namespace": "ops",
+      "secret": "report-key"
+    },
+    {
+      "id": "protect-api-0",
+      "kind": "no_downstream_use",
+      "service": "api-0"
+    }
+  ],
+  "profile": {
+    "api_audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "id": "k8s-1.31-core-v1",
+    "kubernetes_version": "1.31",
+    "projected_token_ttl_seconds": 3600
+  },
+  "remediation": [
+    {
+      "keep_uids": [],
+      "kind": "delete_pods_except",
+      "namespace": "ops",
+      "service_account": "reporter"
+    },
+    {
+      "kind": "rotate_downstream_credential",
+      "service": "api-0"
+    }
+  ],
+  "schema": "afterlock.analysis-input/1"
+}
